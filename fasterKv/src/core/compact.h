@@ -26,17 +26,11 @@ class CompactionUpsert : public IAsyncContext {
   typedef Record<K, V> record_t;
 
   /// Constructs and returns a context given a pointer to a record.
-  CompactionUpsert(record_t* record)
-   : key_(record->key())
-   , value_(record->value())
-  {}
+  CompactionUpsert(record_t* record) : key_(record->key()), value_(record->value()) {}
 
   /// Copy constructor. Required for when an Upsert operation goes async
   /// inside FASTER.
-  CompactionUpsert(const CompactionUpsert& from)
-   : key_(from.key_)
-   , value_(from.value_)
-  {}
+  CompactionUpsert(const CompactionUpsert& from) : key_(from.key_), value_(from.value_) {}
 
   /// Accessor for the key. Invoked from within FASTER.
   inline const K& key() const {
@@ -54,14 +48,14 @@ class CompactionUpsert : public IAsyncContext {
   /// typically invoked from within FASTER when a new record corresponding
   /// to the key-value pair is created at the tail of the hybrid log.
   inline void Put(V& val) {
-    new(&val) V(value_);
+    new (&val) V(value_);
   }
 
   /// Atomically stores this context's value into a passed in reference. This
   /// is typically invoked from within FASTER when performing an Upsert on a
   /// key-value pair in the HybridLog's mutable region.
   inline bool PutAtomic(V& val) {
-    new(&val) V(value_);
+    new (&val) V(value_);
     return true;
   }
 
@@ -96,15 +90,11 @@ class CompactionDelete : public IAsyncContext {
   typedef Record<K, V> record_t;
 
   /// Constructs and returns a context given a pointer to a record.
-  CompactionDelete(record_t* record)
-   : key_(record->key())
-  {}
+  CompactionDelete(record_t* record) : key_(record->key()) {}
 
   /// Copy constructor. Required for when the operation goes async
   /// inside FASTER.
-  CompactionDelete(const CompactionDelete& from)
-   : key_(from.key_)
-  {}
+  CompactionDelete(const CompactionDelete& from) : key_(from.key_) {}
 
   /// Accessor for the key. Invoked from within FASTER.
   inline const K& key() const {

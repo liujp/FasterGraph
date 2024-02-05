@@ -19,17 +19,19 @@ namespace core {
 class IndexMetadata {
  public:
   IndexMetadata()
-    : version{ 0 }
-    , table_size{ 0 }
-    , num_ht_bytes{ 0 }
-    , num_ofb_bytes{ 0 }
-    , ofb_count{ FixedPageAddress::kInvalidAddress }
-    , log_begin_address{ Address::kInvalidAddress }
-    , checkpoint_start_address{ Address::kInvalidAddress } {
-  }
+      : version{0},
+        table_size{0},
+        num_ht_bytes{0},
+        num_ofb_bytes{0},
+        ofb_count{FixedPageAddress::kInvalidAddress},
+        log_begin_address{Address::kInvalidAddress},
+        checkpoint_start_address{Address::kInvalidAddress} {}
 
-  inline void Initialize(uint32_t version_, uint64_t size_, Address log_begin_address_,
-                         Address checkpoint_start_address_) {
+  inline void Initialize(
+      uint32_t version_,
+      uint64_t size_,
+      Address log_begin_address_,
+      Address checkpoint_start_address_) {
     version = version_;
     table_size = size_;
     log_begin_address = log_begin_address_;
@@ -64,11 +66,11 @@ static_assert(sizeof(IndexMetadata) == 56, "sizeof(IndexMetadata) != 56");
 class LogMetadata {
  public:
   LogMetadata()
-    : use_snapshot_file{ false }
-    , version{ UINT32_MAX }
-    , num_threads{ 0 }
-    , flushed_address{ Address::kInvalidAddress }
-    , final_address{ Address::kMaxAddress } {
+      : use_snapshot_file{false},
+        version{UINT32_MAX},
+        num_threads{0},
+        flushed_address{Address::kInvalidAddress},
+        final_address{Address::kMaxAddress} {
     std::memset(guids, 0, sizeof(guids));
     std::memset(monotonic_serial_nums, 0, sizeof(monotonic_serial_nums));
   }
@@ -94,28 +96,32 @@ class LogMetadata {
   uint64_t monotonic_serial_nums[Thread::kMaxNumThreads];
   Guid guids[Thread::kMaxNumThreads];
 };
-static_assert(sizeof(LogMetadata) == 32 + (24 * Thread::kMaxNumThreads),
-              "sizeof(LogMetadata) != 32 + (24 * Thread::kMaxNumThreads)");
+static_assert(
+    sizeof(LogMetadata) == 32 + (24 * Thread::kMaxNumThreads),
+    "sizeof(LogMetadata) != 32 + (24 * Thread::kMaxNumThreads)");
 
 /// State of the active Checkpoint()/Recover() call, including metadata written to disk.
 template <class F>
 class CheckpointState {
  public:
   typedef F file_t;
-  typedef void(*index_persistence_callback_t)(Status result);
-  typedef void(*hybrid_log_persistence_callback_t)(Status result, uint64_t persistent_serial_num);
+  typedef void (*index_persistence_callback_t)(Status result);
+  typedef void (*hybrid_log_persistence_callback_t)(Status result, uint64_t persistent_serial_num);
 
   CheckpointState()
-    : index_checkpoint_started{ false }
-    , failed{ false }
-    , flush_pending{ UINT32_MAX }
-    , index_persistence_callback{ nullptr }
-    , hybrid_log_persistence_callback{ nullptr } {
-  }
+      : index_checkpoint_started{false},
+        failed{false},
+        flush_pending{UINT32_MAX},
+        index_persistence_callback{nullptr},
+        hybrid_log_persistence_callback{nullptr} {}
 
-  void InitializeIndexCheckpoint(const Guid& token, uint32_t version, uint64_t table_size,
-                                 Address log_begin_address, Address checkpoint_start_address,
-                                 index_persistence_callback_t callback) {
+  void InitializeIndexCheckpoint(
+      const Guid& token,
+      uint32_t version,
+      uint64_t table_size,
+      Address log_begin_address,
+      Address checkpoint_start_address,
+      index_persistence_callback_t callback) {
     failed = false;
     index_checkpoint_started = false;
     continue_tokens.clear();
@@ -128,9 +134,12 @@ class CheckpointState {
     hybrid_log_persistence_callback = nullptr;
   }
 
-  void InitializeHybridLogCheckpoint(const Guid& token, uint32_t version, bool use_snapshot_file,
-                                     Address flushed_until_address,
-                                     hybrid_log_persistence_callback_t callback) {
+  void InitializeHybridLogCheckpoint(
+      const Guid& token,
+      uint32_t version,
+      bool use_snapshot_file,
+      Address flushed_until_address,
+      hybrid_log_persistence_callback_t callback) {
     failed = false;
     index_checkpoint_started = false;
     continue_tokens.clear();
@@ -138,7 +147,7 @@ class CheckpointState {
     hybrid_log_token = token;
     index_metadata.Reset();
     log_metadata.Initialize(use_snapshot_file, version, flushed_until_address);
-    if(use_snapshot_file) {
+    if (use_snapshot_file) {
       flush_pending = UINT32_MAX;
     } else {
       flush_pending = 0;
@@ -147,11 +156,16 @@ class CheckpointState {
     hybrid_log_persistence_callback = callback;
   }
 
-  void InitializeCheckpoint(const Guid& token, uint32_t version, uint64_t table_size,
-                            Address log_begin_address, Address checkpoint_start_address,
-                            bool use_snapshot_file, Address flushed_until_address,
-                            index_persistence_callback_t index_persistence_callback_,
-                            hybrid_log_persistence_callback_t hybrid_log_persistence_callback_) {
+  void InitializeCheckpoint(
+      const Guid& token,
+      uint32_t version,
+      uint64_t table_size,
+      Address log_begin_address,
+      Address checkpoint_start_address,
+      bool use_snapshot_file,
+      Address flushed_until_address,
+      index_persistence_callback_t index_persistence_callback_,
+      hybrid_log_persistence_callback_t hybrid_log_persistence_callback_) {
     failed = false;
     index_checkpoint_started = false;
     continue_tokens.clear();
@@ -159,7 +173,7 @@ class CheckpointState {
     hybrid_log_token = token;
     index_metadata.Initialize(version, table_size, log_begin_address, checkpoint_start_address);
     log_metadata.Initialize(use_snapshot_file, version, flushed_until_address);
-    if(use_snapshot_file) {
+    if (use_snapshot_file) {
       flush_pending = UINT32_MAX;
     } else {
       flush_pending = 0;
@@ -210,6 +224,5 @@ class CheckpointState {
   std::unordered_map<Guid, uint64_t> continue_tokens;
 };
 
-}
-} // namespace FASTER::core
-
+} // namespace core
+} // namespace FASTER

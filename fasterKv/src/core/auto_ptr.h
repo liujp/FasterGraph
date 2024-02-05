@@ -23,7 +23,7 @@ inline uint8_t _BitScanReverse64(unsigned long* index, uint64_t mask) {
   *index = 63 - __builtin_clzl(mask);
   return found;
 }
-}
+} // namespace FASTER
 #endif
 
 /// Wrappers for C++ std::unique_ptr<>.
@@ -34,15 +34,16 @@ namespace core {
 /// Round the specified size up to the next power of 2.
 inline size_t next_power_of_two(size_t size) {
   assert(size > 0);
-  // BSR returns the index k of the most-significant 1 bit. So 2^(k+1) > (size - 1) >= 2^k,
-  // which means 2^(k+1) >= size > 2^k.
+  // BSR returns the index k of the most-significant 1 bit. So 2^(k+1) > (size -
+  // 1) >= 2^k, which means 2^(k+1) >= size > 2^k.
   unsigned long k;
   uint8_t found = _BitScanReverse64(&k, size - 1);
-  return (uint64_t)1 << (found  * (k + 1));
+  return (uint64_t)1 << (found * (k + 1));
 }
 
-/// Pad alignment to specified. Declared "constexpr" so that the calculation can be performed at
-/// compile time, assuming parameters "size" and "alignment" are known then.
+/// Pad alignment to specified. Declared "constexpr" so that the calculation can
+/// be performed at compile time, assuming parameters "size" and "alignment" are
+/// known then.
 constexpr inline size_t pad_alignment(size_t size, size_t alignment) {
   assert(alignment > 0);
   // Function implemented only for powers of 2.
@@ -119,5 +120,5 @@ context_unique_ptr_t<T> alloc_context(uint32_t size) {
   return make_context_unique_ptr<T>(reinterpret_cast<T*>(lss_allocator.Allocate(size)));
 }
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

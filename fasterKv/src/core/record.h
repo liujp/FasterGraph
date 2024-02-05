@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <type_traits>
 #include "address.h"
 #include "auto_ptr.h"
 
@@ -14,37 +15,38 @@ namespace core {
 /// Record header, internal to FASTER.
 class RecordInfo {
  public:
-  RecordInfo(uint16_t checkpoint_version_, bool final_bit_, bool tombstone_, bool invalid_,
-             Address previous_address)
-    : checkpoint_version{ checkpoint_version_ }
-    , final_bit{ final_bit_ }
-    , tombstone{ tombstone_ }
-    , invalid{ invalid_ }
-    , previous_address_{ previous_address.control() } {
-  }
+  RecordInfo(
+      uint16_t checkpoint_version_,
+      bool final_bit_,
+      bool tombstone_,
+      bool invalid_,
+      Address previous_address)
+      : checkpoint_version{checkpoint_version_},
+        final_bit{final_bit_},
+        tombstone{tombstone_},
+        invalid{invalid_},
+        previous_address_{previous_address.control()} {}
 
-  RecordInfo(const RecordInfo& other)
-    : control_{ other.control_ } {
-  }
+  RecordInfo(const RecordInfo& other) : control_{other.control_} {}
 
   inline bool IsNull() const {
     return control_ == 0;
   }
   inline Address previous_address() const {
-    return Address{ previous_address_ };
+    return Address{previous_address_};
   }
 
   union {
-      struct {
-        uint64_t previous_address_ : 48;
-        uint64_t checkpoint_version : 13;
-        uint64_t invalid : 1;
-        uint64_t tombstone : 1;
-        uint64_t final_bit : 1;
-      };
-
-      uint64_t control_;
+    struct {
+      uint64_t previous_address_ : 48;
+      uint64_t checkpoint_version : 13;
+      uint64_t invalid : 1;
+      uint64_t tombstone : 1;
+      uint64_t final_bit : 1;
     };
+
+    uint64_t control_;
+  };
 };
 static_assert(sizeof(RecordInfo) == 8, "sizeof(RecordInfo) != 8");
 
@@ -54,14 +56,14 @@ template <class key_t, class value_t>
 struct Record {
   // To support records with alignment > 64, modify the persistent-memory allocator to allocate
   // a larger NULL page on startup.
-  static_assert(alignof(key_t) <= Constants::kCacheLineBytes,
-                "alignof(key_t) > Constants::kCacheLineBytes)");
-  static_assert(alignof(value_t) <= Constants::kCacheLineBytes,
-                "alignof(value_t) > Constants::kCacheLineBytes)");
+  static_assert(
+      alignof(key_t) <= Constants::kCacheLineBytes,
+      "alignof(key_t) > Constants::kCacheLineBytes)");
+  static_assert(
+      alignof(value_t) <= Constants::kCacheLineBytes,
+      "alignof(value_t) > Constants::kCacheLineBytes)");
 
-  Record(RecordInfo header_)
-      : header{ header_ } {
-  }
+  Record(RecordInfo header_) : header{header_} {}
 
   /// For placement new() operator. Can't set value, since it might be set by value = input (for
   /// upsert), or rmw_initial(...) (for RMW).
@@ -84,16 +86,14 @@ struct Record {
   /// Value appears immediately after key (subject to alignment padding). Values can be modified.
   inline constexpr const value_t& value() const {
     const uint8_t* head = reinterpret_cast<const uint8_t*>(this);
-    size_t offset = pad_alignment(key().size() +
-                                  pad_alignment(sizeof(RecordInfo), alignof(key_t)),
-                                  alignof(value_t));
+    size_t offset = pad_alignment(
+        key().size() + pad_alignment(sizeof(RecordInfo), alignof(key_t)), alignof(value_t));
     return *reinterpret_cast<const value_t*>(head + offset);
   }
   inline constexpr value_t& value() {
     uint8_t* head = reinterpret_cast<uint8_t*>(this);
-    size_t offset = pad_alignment(key().size() +
-                                  pad_alignment(sizeof(RecordInfo), alignof(key_t)),
-                                  alignof(value_t));
+    size_t offset = pad_alignment(
+        key().size() + pad_alignment(sizeof(RecordInfo), alignof(key_t)), alignof(value_t));
     return *reinterpret_cast<value_t*>(head + offset);
   }
 
@@ -101,14 +101,16 @@ struct Record {
   /// that the next record stored in the log is properly aligned.)
   static inline constexpr uint32_t size(uint32_t key_size, uint32_t value_size) {
     return static_cast<uint32_t>(
-             // --plus Value size, all padded to Header alignment.
-             pad_alignment(value_size +
-                           // --plus Key size, all padded to Value alignment.
-                           pad_alignment(key_size +
-                                         // Header, padded to Key alignment.
-                                         pad_alignment(sizeof(RecordInfo), alignof(key_t)),
-                                         alignof(value_t)),
-                           alignof(RecordInfo)));
+        // --plus Value size, all padded to Header alignment.
+        pad_alignment(
+            value_size +
+                // --plus Key size, all padded to Value alignment.
+                pad_alignment(
+                    key_size +
+                        // Header, padded to Key alignment.
+                        pad_alignment(sizeof(RecordInfo), alignof(key_t)),
+                    alignof(value_t)),
+            alignof(RecordInfo)));
   }
   /// Size of the existing record, in memory. (Includes padding, if any, after the value.)
   inline constexpr uint32_t size() const {
@@ -119,38 +121,40 @@ struct Record {
   /// information class key_t needs to determine its key size.
   static inline constexpr uint32_t min_disk_key_size() {
     return static_cast<uint32_t>(
-             // -- plus sizeof(key_t).
-             sizeof(key_t) +
-             // Header size, padded to Key alignment.
-             pad_alignment(sizeof(RecordInfo), alignof(key_t)));
+        // -- plus sizeof(key_t).
+        sizeof(key_t) +
+        // Header size, padded to Key alignment.
+        pad_alignment(sizeof(RecordInfo), alignof(key_t)));
   }
 
   /// Minimum size of a read from disk that is guaranteed to include the record's header, key,
   // and whatever information the host needs to determine the value size.
   inline constexpr uint32_t min_disk_value_size() const {
     return static_cast<uint32_t>(
-             // -- plus size of the Value's header.
-             sizeof(value_t) +
-             // --plus Key size, padded to Base Value alignment.
-             pad_alignment(key().size() +
-                           // Header, padded to Key alignment.
-                           pad_alignment(sizeof(RecordInfo), alignof(key_t)),
-                           alignof(value_t))
-           );
+        // -- plus size of the Value's header.
+        sizeof(value_t) +
+        // --plus Key size, padded to Base Value alignment.
+        pad_alignment(
+            key().size() +
+                // Header, padded to Key alignment.
+                pad_alignment(sizeof(RecordInfo), alignof(key_t)),
+            alignof(value_t)));
   }
 
   /// Size of a record, on disk. (Excludes padding, if any, after the value.)
   inline constexpr uint32_t disk_size() const {
-    return static_cast<uint32_t>(value().size() +
-                                 pad_alignment(key().size() +
-                                     // Header, padded to Key alignment.
-                                     pad_alignment(sizeof(RecordInfo), alignof(key_t)),
-                                     alignof(value_t)));
+    return static_cast<uint32_t>(
+        value().size() +
+        pad_alignment(
+            key().size() +
+                // Header, padded to Key alignment.
+                pad_alignment(sizeof(RecordInfo), alignof(key_t)),
+            alignof(value_t)));
   }
 
  public:
   RecordInfo header;
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER
