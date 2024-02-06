@@ -2,8 +2,8 @@
 // Licensed under the MIT license.
 
 #include <atomic>
-#include <string>
 #include <experimental/filesystem>
+#include <string>
 
 #ifdef _WIN32
 
@@ -29,10 +29,10 @@ using concurrent_queue = tbb::concurrent_queue<T>;
 
 #include "file_system_disk.h"
 
-#include "core/thread.h"
 #include "core/address.h"
 #include "core/gc_state.h"
 #include "core/persistent_memory_malloc.h"
+#include "core/thread.h"
 
 #include "common/log.h"
 
@@ -73,42 +73,42 @@ class LocalFile {
   /// \param deleteOnClose
   ///    If true, the underlying operating system will delete this file once
   ///    closed.
-  LocalFile(const std::string& fileName, handler_t* ioHandler,
-            uint64_t size=Address::kMaxOffset, bool unBuffered=true,
-            bool deleteOnClose=false)
-    : status{ }
-    , pages{ nullptr }
-    , flushedOffset{ Address(0) }
-    , size{ size }
-    , file{ fileName }
-    , flags{ unBuffered, deleteOnClose }
-    , ioHandler{ ioHandler }
-    , numPages{ 0 }
-  {}
+  LocalFile(
+      const std::string& fileName,
+      handler_t* ioHandler,
+      uint64_t size = Address::kMaxOffset,
+      bool unBuffered = true,
+      bool deleteOnClose = false)
+      : status{},
+        pages{nullptr},
+        flushedOffset{Address(0)},
+        size{size},
+        file{fileName},
+        flags{unBuffered, deleteOnClose},
+        ioHandler{ioHandler},
+        numPages{0} {}
 
   /// Default constructor.
   LocalFile()
-    : status{ }
-    , pages{ nullptr }
-    , flushedOffset{ Address(0) }
-    , size{ }
-    , file{ }
-    , flags{ }
-    , ioHandler{ }
-    , numPages{ 0 }
-  {}
+      : status{},
+        pages{nullptr},
+        flushedOffset{Address(0)},
+        size{},
+        file{},
+        flags{},
+        ioHandler{},
+        numPages{0} {}
 
   /// Move constructor. Required by StorageDevice.
   LocalFile(LocalFile&& from)
-    : status{ }
-    , pages{ std::move(from.pages) }
-    , flushedOffset{ from.flushedOffset.load() }
-    , size{ std::move(from.size) }
-    , file{ std::move(from.file) }
-    , flags{ std::move(from.flags) }
-    , ioHandler{ std::move(from.ioHandler) }
-    , numPages{ std::move(from.numPages) }
-  {
+      : status{},
+        pages{std::move(from.pages)},
+        flushedOffset{from.flushedOffset.load()},
+        size{std::move(from.size)},
+        file{std::move(from.file)},
+        flags{std::move(from.flags)},
+        ioHandler{std::move(from.ioHandler)},
+        numPages{std::move(from.numPages)} {
     FlushCloseStatus l = from.status.load();
     status.store(l.flush, l.close);
   }
@@ -144,11 +144,11 @@ class LocalFile {
 
     // Allocate the page status array.
     numPages = size / StorageDevice<H, R>::maxRemoteIO;
-    if (size % Address::kMaxOffset != 0) numPages++;
+    if (size % Address::kMaxOffset != 0)
+      numPages++;
     pages = new FullPageStatus[numPages];
 
-    return file.Open(FileCreateDisposition::OpenOrCreate,
-                     flags, ioHandler, nullptr);
+    return file.Open(FileCreateDisposition::OpenOrCreate, flags, ioHandler, nullptr);
   }
 
   /// Closes the file.
@@ -156,7 +156,7 @@ class LocalFile {
   /// \return
   ///    Status::Ok on success.
   Status Close() {
-    delete(pages);
+    delete (pages);
     return file.Close();
   }
 
@@ -188,11 +188,13 @@ class LocalFile {
   /// \return
   ///    Status::Ok if the read completed. Status::Pending if it went
   ///    asynchronous.
-  Status ReadAsync(uint64_t source, void* dest, uint32_t length,
-                   AsyncIOCallback callback, IAsyncContext& context) const
-  {
-    return file.Read(source, length, reinterpret_cast<uint8_t*>(dest),
-                     context, callback);
+  Status ReadAsync(
+      uint64_t source,
+      void* dest,
+      uint32_t length,
+      AsyncIOCallback callback,
+      IAsyncContext& context) const {
+    return file.Read(source, length, reinterpret_cast<uint8_t*>(dest), context, callback);
   }
 
   /// Writes a contiguous sequence of bytes to the file.
@@ -213,12 +215,13 @@ class LocalFile {
   /// \return
   ///    Status::Ok if the write completed. Status::Pending if it went
   ///    asynchronous.
-  Status WriteAsync(const void* source, uint64_t dest,
-                    uint32_t length, AsyncIOCallback callback,
-                    IAsyncContext& context)
-  {
-    return file.Write(dest, length, reinterpret_cast<const uint8_t*>(source),
-                      context, callback);
+  Status WriteAsync(
+      const void* source,
+      uint64_t dest,
+      uint32_t length,
+      AsyncIOCallback callback,
+      IAsyncContext& context) {
+    return file.Write(dest, length, reinterpret_cast<const uint8_t*>(source), context, callback);
   }
 
   /// Returns the alignment of the underlying local hardware/storage device.
@@ -239,13 +242,12 @@ class LocalFile {
   ///
   /// \return
   ///    True if the update was performed. False otherwise.
-  static inline bool MonotonicUpdate(AtomicAddress& variable,
-                                     Address new_value,
-                                     Address& old_value)
-  {
+  static inline bool
+  MonotonicUpdate(AtomicAddress& variable, Address new_value, Address& old_value) {
     old_value = variable.load();
-    while(old_value < new_value) {
-      if(variable.compare_exchange_strong(old_value, new_value)) return true;
+    while (old_value < new_value) {
+      if (variable.compare_exchange_strong(old_value, new_value))
+        return true;
     }
 
     return false;
@@ -263,7 +265,8 @@ class LocalFile {
   ///    the flush completed.
   static void FlushLocal(LocalFile* local, uint64_t page, Address until) {
     // Return if there is an overflow on the number of pages.
-    if (page >= local->numPages) return;
+    if (page >= local->numPages)
+      return;
 
     // Update the address upto which the page has flushed.
     local->pages[page].LastFlushedUntilAddress.store(until);
@@ -273,7 +276,8 @@ class LocalFile {
     // get the address upto which the page has flushed.
     Address currFlushedUntil = local->flushedOffset.load();
     uint64_t idx = currFlushedUntil.control() >> Address::kOffsetBits;
-    if (idx >= local->numPages) return;
+    if (idx >= local->numPages)
+      return;
     Address pageFlushedUntil = local->pages[idx].LastFlushedUntilAddress.load();
 
     bool update = false;
@@ -285,7 +289,8 @@ class LocalFile {
       currFlushedUntil = pageFlushedUntil;
       update = true;
       idx++;
-      if (idx >= local->numPages) break;
+      if (idx >= local->numPages)
+        break;
       pageFlushedUntil = local->pages[idx].LastFlushedUntilAddress.load();
     }
 
@@ -371,61 +376,64 @@ class StorageFile {
   /// \param bits
   ///    Logarithm base 2 of the size of each local file the log is split
   ///    across.
-  StorageFile(std::string fileName, handler_t* ioHandler, LightEpoch* epoch,
-              concurrent_queue<task_t>* pendingTasks,
-              uint16_t id, const std::string& dfs,
-              uint64_t numFiles=16, uint64_t distance=8, uint64_t bits=9)
-    : localFiles()
-    , safeRemoteOffset(0)
-    , remote(utility::conversions::to_string_t(dfs).c_str(), pendingTasks, id)
-    , remoteOffset(0)
-    , remoteFlushed(0)
-    , tailFile(0)
-    , baseName(fileName)
-    , ioHandler(ioHandler)
-    , epoch(epoch)
-    , kFileBits(bits)
-    , kFileSize((uint64_t)1 << kFileBits)
-    , kNumFiles(numFiles)
-    , kDistance(distance * kFileSize)
-    , kLocalSize(kNumFiles * kFileSize)
-  {}
+  StorageFile(
+      std::string fileName,
+      handler_t* ioHandler,
+      LightEpoch* epoch,
+      concurrent_queue<task_t>* pendingTasks,
+      uint16_t id,
+      const std::string& dfs,
+      uint64_t numFiles = 16,
+      uint64_t distance = 8,
+      uint64_t bits = 9)
+      : localFiles(),
+        safeRemoteOffset(0),
+        remote(utility::conversions::to_string_t(dfs).c_str(), pendingTasks, id),
+        remoteOffset(0),
+        remoteFlushed(0),
+        tailFile(0),
+        baseName(fileName),
+        ioHandler(ioHandler),
+        epoch(epoch),
+        kFileBits(bits),
+        kFileSize((uint64_t)1 << kFileBits),
+        kNumFiles(numFiles),
+        kDistance(distance * kFileSize),
+        kLocalSize(kNumFiles * kFileSize) {}
 
   /// Default constructor.
   StorageFile()
-    : localFiles()
-    , safeRemoteOffset(0)
-    , remote()
-    , remoteOffset(0)
-    , remoteFlushed(0)
-    , tailFile(0)
-    , baseName()
-    , ioHandler(nullptr)
-    , epoch(nullptr)
-    , kFileBits(9)
-    , kFileSize((uint64_t)1 << kFileBits)
-    , kNumFiles(16)
-    , kDistance((uint64_t)8 * kFileSize)
-    , kLocalSize(kNumFiles * kFileSize)
-  {}
+      : localFiles(),
+        safeRemoteOffset(0),
+        remote(),
+        remoteOffset(0),
+        remoteFlushed(0),
+        tailFile(0),
+        baseName(),
+        ioHandler(nullptr),
+        epoch(nullptr),
+        kFileBits(9),
+        kFileSize((uint64_t)1 << kFileBits),
+        kNumFiles(16),
+        kDistance((uint64_t)8 * kFileSize),
+        kLocalSize(kNumFiles * kFileSize) {}
 
   /// Move constructor.
   StorageFile(StorageFile&& from)
-    : localFiles(std::move(from.localFiles))
-    , safeRemoteOffset(from.safeRemoteOffset.load())
-    , remote(std::move(from.remote))
-    , remoteOffset(from.remoteOffset.load())
-    , remoteFlushed(from.remoteFlushed.load())
-    , tailFile(0)
-    , baseName(std::move(from.baseName))
-    , ioHandler(std::move(from.ioHandler))
-    , epoch(std::move(from.epoch))
-    , kFileBits(std::move(from.kFileBits))
-    , kFileSize(std::move(from.kFileSize))
-    , kNumFiles(std::move(from.kNumFiles))
-    , kDistance(std::move(from.kDistance))
-    , kLocalSize(std::move(from.kLocalSize))
-  {}
+      : localFiles(std::move(from.localFiles)),
+        safeRemoteOffset(from.safeRemoteOffset.load()),
+        remote(std::move(from.remote)),
+        remoteOffset(from.remoteOffset.load()),
+        remoteFlushed(from.remoteFlushed.load()),
+        tailFile(0),
+        baseName(std::move(from.baseName)),
+        ioHandler(std::move(from.ioHandler)),
+        epoch(std::move(from.epoch)),
+        kFileBits(std::move(from.kFileBits)),
+        kFileSize(std::move(from.kFileSize)),
+        kNumFiles(std::move(from.kNumFiles)),
+        kDistance(std::move(from.kDistance)),
+        kLocalSize(std::move(from.kLocalSize)) {}
 
   /// Move-assign constructor.
   StorageFile& operator=(StorageFile&& from) {
@@ -457,17 +465,16 @@ class StorageFile {
   ///    Status::Ok on success.
   Status Open() {
     std::string m = std::string("Opening HybridLog Storage file. ") +
-                    "The log will span %lu %lu GB files on local storage, " +
-                    "with the rest flushed to the remote tier. " +
-                    "Files will be evicted to the remote tier when there is " +
-                    "more than %lu GB on local storage";
-    logMessage(Lvl::INFO, m.c_str(), kNumFiles, kFileSize >> 30,
-               kDistance >> 30);
+        "The log will span %lu %lu GB files on local storage, " +
+        "with the rest flushed to the remote tier. " +
+        "Files will be evicted to the remote tier when there is " +
+        "more than %lu GB on local storage";
+    logMessage(Lvl::INFO, m.c_str(), kNumFiles, kFileSize >> 30, kDistance >> 30);
 
     // First open the tail file.
     std::string name = baseName + std::to_string(tailFile.control());
     LocalFile<handler_t, remote_t>* tail =
-                new LocalFile<handler_t, remote_t>(name, ioHandler, kFileSize);
+        new LocalFile<handler_t, remote_t>(name, ioHandler, kFileSize);
     if (tail->Open() != Status::Ok) {
       logMessage(Lvl::ERR, "Failed to open local file %s", name.c_str());
       return Status::Aborted;
@@ -487,19 +494,23 @@ class StorageFile {
     // First close all local files. If any fail, return an error.
     for (auto& file : localFiles) {
       if (file.second->Close() != Status::Ok) {
-        logMessage(Lvl::ERR, "Failed to close local file %s",
-                   baseName + std::to_string(file.first) + ".log");
+        logMessage(
+            Lvl::ERR,
+            "Failed to close local file %s",
+            baseName + std::to_string(file.first) + ".log");
         return Status::Aborted;
       }
 
       // Delete all LocalFile instances.
       if (file.second->Delete() != Status::Ok) {
-        logMessage(Lvl::ERR, "Failed to delete local file %s",
-                   baseName + std::to_string(file.first) + ".log");
+        logMessage(
+            Lvl::ERR,
+            "Failed to delete local file %s",
+            baseName + std::to_string(file.first) + ".log");
         return Status::Aborted;
       }
 
-      delete(file.second);
+      delete (file.second);
     }
 
     // Remove all local file handles.
@@ -517,8 +528,10 @@ class StorageFile {
     // First delete all local files. If any fail, return an error.
     for (auto& file : localFiles) {
       if (file.second->Delete() != Status::Ok) {
-        logMessage(Lvl::ERR, "Failed to delete local file %s",
-                   baseName + std::to_string(file->first) + ".log");
+        logMessage(
+            Lvl::ERR,
+            "Failed to delete local file %s",
+            baseName + std::to_string(file->first) + ".log");
         return Status::Aborted;
       }
     }
@@ -547,9 +560,12 @@ class StorageFile {
   /// \return
   ///    Status::Ok if the read completed. Status::Pending if it went
   ///    asynchronous.
-  Status ReadAsync(uint64_t source, void* dest, uint32_t length,
-                   AsyncIOCallback callback, IAsyncContext& context)
-  {
+  Status ReadAsync(
+      uint64_t source,
+      void* dest,
+      uint32_t length,
+      AsyncIOCallback callback,
+      IAsyncContext& context) {
     // If the source address belongs to this FASTER instance's logical
     // address address space and is greater than the remote offset, then
     // lookup the local file (on local SSD). The former condition is
@@ -559,14 +575,12 @@ class StorageFile {
       // read to it.
       uint64_t file = source & ~(kFileSize - 1);
       auto handle = localFiles.find(file);
-      return handle->second->ReadAsync(source & (kFileSize - 1), dest, length,
-                                       callback, context);
+      return handle->second->ReadAsync(source & (kFileSize - 1), dest, length, callback, context);
     } else {
       // The record was either migrated over from a different machine, or
       // was evicted from the local file to Azure blob store. Lookup the
       // remote file to find it.
-      return remote.ReadAsync(source, length, reinterpret_cast<uint8_t*>(dest),
-                              callback, context);
+      return remote.ReadAsync(source, length, reinterpret_cast<uint8_t*>(dest), callback, context);
     }
   }
 
@@ -588,9 +602,12 @@ class StorageFile {
   /// \return
   ///    Status::Ok if the write completed. Status::Pending if it went
   ///    asynchronous.
-  Status WriteAsync(const void* source, uint64_t dest, uint32_t length,
-                    AsyncIOCallback callback, IAsyncContext& context)
-  {
+  Status WriteAsync(
+      const void* source,
+      uint64_t dest,
+      uint32_t length,
+      AsyncIOCallback callback,
+      IAsyncContext& context) {
     // Identify the file this write has to go to. Writes are assumed to
     // never straddle a file boundary.
     Address file = Address((uint64_t)(dest >> kFileBits) << kFileBits);
@@ -599,19 +616,21 @@ class StorageFile {
       // First check if the file being written to overflows the current
       // tailFile. If it does, then try to allocate a new tail file.
       Address tail = tailFile.load();
-      if (file <= tail) break;
+      if (file <= tail)
+        break;
 
       // Check if there is only one file between the tail file and size
       // limit. If so, then shift the remote offset, and make room on
       // the local SSD. Return to the caller after doing so.
       if (tail.control() + (kFileSize << (uint64_t)1) >=
-          safeRemoteOffset.load().control() + kLocalSize)
-      {
+          safeRemoteOffset.load().control() + kLocalSize) {
         auto m = std::string("Aborting write because space consumed locally ") +
-                 "(%lu GB) is close to exceeding configured limit (%lu GB)";
-        logMessage(Lvl::INFO, m.c_str(),
-                   tail.control() - safeRemoteOffset.load().control(),
-                   kLocalSize >> 30);
+            "(%lu GB) is close to exceeding configured limit (%lu GB)";
+        logMessage(
+            Lvl::INFO,
+            m.c_str(),
+            tail.control() - safeRemoteOffset.load().control(),
+            kLocalSize >> 30);
         ShiftRemoteOffset(Address(tail.control() + kFileSize));
         return Status::Aborted;
       }
@@ -620,16 +639,16 @@ class StorageFile {
       // failed, then retry the above checks because another thread might
       // have moved the tail file forward.
       Address newTail = Address(tail.control() + kFileSize);
-      if (!tailFile.compare_exchange_strong(tail, newTail)) continue;
+      if (!tailFile.compare_exchange_strong(tail, newTail))
+        continue;
 
-      LocalFile<handler_t, remote_t>* local =
-          new LocalFile<handler_t, remote_t>(baseName +
-                                    std::to_string(newTail.control()) + ".log",
-                                    ioHandler, kFileSize);
+      LocalFile<handler_t, remote_t>* local = new LocalFile<handler_t, remote_t>(
+          baseName + std::to_string(newTail.control()) + ".log", ioHandler, kFileSize);
       if (local->Open() != Status::Ok) {
-        logMessage(Lvl::ERR,
-                   "Write required opening of new file %s which failed",
-                   baseName + std::to_string(newTail.control()) + ".log");
+        logMessage(
+            Lvl::ERR,
+            "Write required opening of new file %s which failed",
+            baseName + std::to_string(newTail.control()) + ".log");
         return Status::Aborted;
       }
 
@@ -641,16 +660,19 @@ class StorageFile {
     // Get the file handle. Might need to wait because a thread might have
     // moved the tail, but not created a new file handle yet.
     auto handle = localFiles.find(file.control());
-    while (handle == localFiles.end()) handle = localFiles.find(file.control());
+    while (handle == localFiles.end())
+      handle = localFiles.find(file.control());
 
     // Issue the async write to the local file.
-    Status lRes = handle->second->WriteAsync(source, dest & (kFileSize - 1),
-                                             length, callback, context);
+    Status lRes =
+        handle->second->WriteAsync(source, dest & (kFileSize - 1), length, callback, context);
     if (lRes != Status::Ok) {
-      logMessage(Lvl::ERR,
-                 "Failed to write %lu B to address %lu within file %s",
-                 length, dest, baseName + std::to_string(handle->first) +
-                 ".log");
+      logMessage(
+          Lvl::ERR,
+          "Failed to write %lu B to address %lu within file %s",
+          length,
+          dest,
+          baseName + std::to_string(handle->first) + ".log");
       return Status::Aborted;
     }
 
@@ -658,8 +680,7 @@ class StorageFile {
     /// operation might need to be broken up.
     uint32_t remainingBytes = length;
     uint64_t currentDest = dest;
-    uint8_t* currentSource = const_cast<uint8_t*>(
-                reinterpret_cast<const uint8_t*>(source));
+    uint8_t* currentSource = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(source));
     uint32_t maxRemoteIO = StorageDevice<H, R>::maxRemoteIO;
 
     while (remainingBytes > maxRemoteIO) {
@@ -672,16 +693,16 @@ class StorageFile {
       // it could be evicted from the HybridLog's circular buffer.
       uint8_t* copy = new uint8_t[maxRemoteIO];
       memcpy(copy, currentSource, maxRemoteIO);
-      FlushContext fContext = FlushContext(this, file, pageInFile, untilAddrs,
-                                           currentDest, copy);
+      FlushContext fContext = FlushContext(this, file, pageInFile, untilAddrs, currentDest, copy);
 
       // Issue the async write to Azure blob storage.
-      Status lRes = remote.WriteAsync(copy, maxRemoteIO, currentDest,
-                                      Flush, fContext);
+      Status lRes = remote.WriteAsync(copy, maxRemoteIO, currentDest, Flush, fContext);
       if (lRes != Status::Ok) {
-        logMessage(Lvl::ERR,
-                   "Failed to write %lu B to address %lu on the remote store",
-                   maxRemoteIO, currentDest);
+        logMessage(
+            Lvl::ERR,
+            "Failed to write %lu B to address %lu on the remote store",
+            maxRemoteIO,
+            currentDest);
         return Status::Aborted;
       }
 
@@ -696,11 +717,9 @@ class StorageFile {
 
     uint8_t* copy = new uint8_t[remainingBytes];
     memcpy(copy, currentSource, remainingBytes);
-    FlushContext fContext = FlushContext(this, file, pageInFile, untilAddrs,
-                                         currentDest, copy);
+    FlushContext fContext = FlushContext(this, file, pageInFile, untilAddrs, currentDest, copy);
 
-    return remote.WriteAsync(copy, remainingBytes, currentDest, Flush,
-                             fContext);
+    return remote.WriteAsync(copy, remainingBytes, currentDest, Flush, fContext);
   }
 
   /// Returns the file's alignment.
@@ -710,7 +729,8 @@ class StorageFile {
 
   /// Truncates the log below a particular offset. XXX Currently does nothing.
   void Truncate(uint64_t newBeginOffset, GcState::truncate_callback_t cb) {
-    if (cb) cb(newBeginOffset);
+    if (cb)
+      cb(newBeginOffset);
   }
 
  private:
@@ -727,21 +747,22 @@ class StorageFile {
     // been flushed yet.
     do {
       auto handle = localFiles.find(currRemoteFlushed.control());
-      if (handle == localFiles.end()) break;
+      if (handle == localFiles.end())
+        break;
 
       FlushCloseStatus fStatus = handle->second->status.load();
       if (fStatus.flush == FlushStatus::Flushed) {
         currRemoteFlushed += handle->second->size;
         update = true;
         continue;
-      } else break;
+      } else
+        break;
     } while (true);
 
     // Update the remoteFlushed address if needed.
     if (update) {
       Address old;
-      LocalFile<handler_t, remote_t>::MonotonicUpdate(remoteFlushed,
-                                            currRemoteFlushed, old);
+      LocalFile<handler_t, remote_t>::MonotonicUpdate(remoteFlushed, currRemoteFlushed, old);
     }
   }
 
@@ -768,15 +789,19 @@ class StorageFile {
     ///    Pointer to the data that is being flushed.
     /// \param dest
     ///    Logical address being flushed to.
-    FlushContext(StorageFile<handler_t, remote_t>* storageFile, Address local,
-                 uint64_t page, Address untilAddress, uint64_t dest, void* data)
-      : storageFile(storageFile)
-      , local(local)
-      , page(page)
-      , untilAddress(untilAddress)
-      , dest(dest)
-      , data(data)
-    {}
+    FlushContext(
+        StorageFile<handler_t, remote_t>* storageFile,
+        Address local,
+        uint64_t page,
+        Address untilAddress,
+        uint64_t dest,
+        void* data)
+        : storageFile(storageFile),
+          local(local),
+          page(page),
+          untilAddress(untilAddress),
+          dest(dest),
+          data(data) {}
 
    protected:
     /// Copies the state from this context to the heap. Memory
@@ -827,36 +852,37 @@ class StorageFile {
 
     // If the original flush failed, then reissue to DFS.
     if (result == Status::Aborted) {
-      logMessage(Lvl::DEBUG, "Reissuing flush of %lu B at address %lu to DFS",
-                 len, context->dest);
+      logMessage(Lvl::DEBUG, "Reissuing flush of %lu B at address %lu to DFS", len, context->dest);
 
-      auto f = FlushContext(context->storageFile, context->local, context->page,
-                            context->untilAddress, context->dest,
-                            context->data);
+      auto f = FlushContext(
+          context->storageFile,
+          context->local,
+          context->page,
+          context->untilAddress,
+          context->dest,
+          context->data);
       context->storageFile->remote.WriteAsync(
-                            reinterpret_cast<uint8_t*>(context->data), (uint32_t) len,
-                            context->dest, Flush, f);
+          reinterpret_cast<uint8_t*>(context->data), (uint32_t)len, context->dest, Flush, f);
       return;
     }
 
-    auto handle =
-      context->storageFile->localFiles.find(context->local.control());
-    if (handle == context->storageFile->localFiles.end()) return;
+    auto handle = context->storageFile->localFiles.find(context->local.control());
+    if (handle == context->storageFile->localFiles.end())
+      return;
 
     // First, update metadata on the local file.
     LocalFile<handler_t, remote_t>* local = handle->second;
-    LocalFile<handler_t, remote_t>::FlushLocal(local, context->page,
-                                               context->untilAddress);
+    LocalFile<handler_t, remote_t>::FlushLocal(local, context->page, context->untilAddress);
 
     // If the local file has flushed fully, mark it as Flushed.
     if (local->flushedOffset.load() == local->size) {
       FlushCloseStatus oldS = local->status.load();
-      FlushCloseStatus newS = FlushCloseStatus(FlushStatus::Flushed,
-                                               oldS.close);
-      while (local->status.compare_exchange_weak(oldS, newS));
+      FlushCloseStatus newS = FlushCloseStatus(FlushStatus::Flushed, oldS.close);
+      while (local->status.compare_exchange_weak(oldS, newS))
+        ;
     }
 
-    delete [] reinterpret_cast<uint8_t*>(context->data);
+    delete[] reinterpret_cast<uint8_t*>(context->data);
 
     // Next, try to update the remoteFlushed address on StorageFile.
     context->storageFile->UpdateRemoteFlushed();
@@ -875,11 +901,8 @@ class StorageFile {
     /// \param newSafeRemoteOffset
     ///    New value of safeRemoteOffset that should be set on the
     ///    the StorageFile.
-    FileEvictionContext(StorageFile<handler_t, remote_t>* storageFile,
-                        Address newSafeRemoteOffset)
-      : storageFile(storageFile)
-      , newSafeRemoteOffset(newSafeRemoteOffset)
-    {}
+    FileEvictionContext(StorageFile<handler_t, remote_t>* storageFile, Address newSafeRemoteOffset)
+        : storageFile(storageFile), newSafeRemoteOffset(newSafeRemoteOffset) {}
 
    protected:
     /// Method that copies an instance of this class from the stack
@@ -909,27 +932,27 @@ class StorageFile {
 
     // Try to update the safeRemoteOffset.
     Address oldSafeRemoteOffset;
-    if (!LocalFile<handler_t, remote_t>::MonotonicUpdate(context->storageFile->safeRemoteOffset,
-                                                         context->newSafeRemoteOffset,
-                                                         oldSafeRemoteOffset))
-    {
+    if (!LocalFile<handler_t, remote_t>::MonotonicUpdate(
+            context->storageFile->safeRemoteOffset,
+            context->newSafeRemoteOffset,
+            oldSafeRemoteOffset)) {
       return;
     }
 
     // If the update went through, then mark corresponding files as
     // closed, and delete those that are also flushed.
-    for (Address file = oldSafeRemoteOffset;
-         file < context->newSafeRemoteOffset;
-         file += context->storageFile->kFileSize)
-    {
+    for (Address file = oldSafeRemoteOffset; file < context->newSafeRemoteOffset;
+         file += context->storageFile->kFileSize) {
       auto handle = context->storageFile->localFiles.find(file.control());
-      if (handle == context->storageFile->localFiles.end()) return;
+      if (handle == context->storageFile->localFiles.end())
+        return;
 
       FlushCloseStatus oldS = handle->second->status.load();
       FlushCloseStatus newS(oldS.flush, CloseStatus::Closed);
 
       // Mark the file closed.
-      while (handle->second->status.compare_exchange_weak(oldS, newS));
+      while (handle->second->status.compare_exchange_weak(oldS, newS))
+        ;
 
       // If the file was also flushed, then delete it. Technically, this
       // check is not needed as the safeRemoteOffset will never move past
@@ -937,7 +960,7 @@ class StorageFile {
       if (oldS.flush == FlushStatus::Flushed) {
         handle->second->Close();
         handle->second->Delete();
-        delete(handle->second);
+        delete (handle->second);
 
         // Since remoteOffset has moved, it is ok to remove the file
         // from the concurrent hashmap.
@@ -956,7 +979,8 @@ class StorageFile {
     Address currRemoteFlushed = remoteFlushed.load();
 
     // Corner case wherin the StorageFile has not grown large enough yet.
-    if (tailFile < kDistance) return;
+    if (tailFile < kDistance)
+      return;
 
     // The desired remote offset. Always at a fixed distance from the tail.
     Address desiredRemoteOffset = tailFile - kDistance;
@@ -972,12 +996,10 @@ class StorageFile {
     // bump the epoch. When the epoch becomes safe, files with data
     // between safeRemoteOffset and remoteOffset will get deleted.
     Address oldRemoteOffset;
-    if (LocalFile<handler_t, remote_t>::MonotonicUpdate(remoteOffset,
-                                              desiredRemoteOffset,
-                                              oldRemoteOffset))
-    {
+    if (LocalFile<handler_t, remote_t>::MonotonicUpdate(
+            remoteOffset, desiredRemoteOffset, oldRemoteOffset)) {
       FileEvictionContext ctxt(this, desiredRemoteOffset);
-      IAsyncContext *copy = nullptr;
+      IAsyncContext* copy = nullptr;
       ctxt.DeepCopy(copy);
       epoch->BumpCurrentEpoch(EvictFiles, copy);
     }
@@ -1084,20 +1106,21 @@ class StorageDevice {
   /// \param deleteOnClose
   ///    If set to true, files created by the device will be deleted by the
   ///    underlying operating system once closed.
-  StorageDevice(const std::string& root, LightEpoch& lEpoch,
-                const std::string& remote, uint16_t id=1,
-                bool unBuffered=false, bool deleteOnClose=false)
-    : localRoot{ FormatPath(root) }
-    , epoch{ &lEpoch }
-    , unBuffered{ unBuffered }
-    , deleteOnClose{ deleteOnClose }
-    , ioHandler{ 8 }
-    , hLog{ localRoot, &ioHandler, &lEpoch, &pendingTasks, id, remote,
-            1024, 302, 30 }
-  {
+  StorageDevice(
+      const std::string& root,
+      LightEpoch& lEpoch,
+      const std::string& remote,
+      uint16_t id = 1,
+      bool unBuffered = false,
+      bool deleteOnClose = false)
+      : localRoot{FormatPath(root)},
+        epoch{&lEpoch},
+        unBuffered{unBuffered},
+        deleteOnClose{deleteOnClose},
+        ioHandler{8},
+        hLog{localRoot, &ioHandler, &lEpoch, &pendingTasks, id, remote, 1024, 302, 30} {
     if (hLog.Open() != Status::Ok) {
-      logMessage(Lvl::ERR,
-                 "Failed to open hybrid log file on Storage device");
+      logMessage(Lvl::ERR, "Failed to open hybrid log file on Storage device");
       throw std::runtime_error("Failed to open file for hybrid log");
     }
   }
@@ -1107,17 +1130,14 @@ class StorageDevice {
   /// \param lEpoch
   ///    Pointer to the epoch manager.
   StorageDevice(LightEpoch& lEpoch)
-    : localRoot{ "C:\\faster\\" }
-    , epoch{ &lEpoch }
-    , unBuffered{ false }
-    , deleteOnClose{ false }
-    , ioHandler{ 8 }
-    , hLog{ localRoot, &ioHandler, &lEpoch, &pendingTasks, 1,
-            "UseDevelopmentStorage=true;" }
-  {
+      : localRoot{"C:\\faster\\"},
+        epoch{&lEpoch},
+        unBuffered{false},
+        deleteOnClose{false},
+        ioHandler{8},
+        hLog{localRoot, &ioHandler, &lEpoch, &pendingTasks, 1, "UseDevelopmentStorage=true;"} {
     if (hLog.Open() != Status::Ok) {
-      logMessage(Lvl::ERR,
-                 "Failed to open hybrid log file on Storage device");
+      logMessage(Lvl::ERR, "Failed to open hybrid log file on Storage device");
       throw std::runtime_error("Failed to open file for hybrid log");
     }
   }
@@ -1127,14 +1147,13 @@ class StorageDevice {
   /// \param from
   ///    The StorageDevice that has to be moved into the new object.
   StorageDevice(StorageDevice&& from)
-    : localRoot{ std::move(from.localRoot) }
-    , epoch{ std::move(from.epoch) }
-    , unBuffered{ std::move(from.unBuffered) }
-    , deleteOnClose{ std::move(from.deleteOnClose) }
-    , ioHandler{ std::move(from.ioHandler) }
-    , pendingTasks{ std::move(from.pendingTasks) }
-    , hLog{ std::move(from.hLog) }
-  {}
+      : localRoot{std::move(from.localRoot)},
+        epoch{std::move(from.epoch)},
+        unBuffered{std::move(from.unBuffered)},
+        deleteOnClose{std::move(from.deleteOnClose)},
+        ioHandler{std::move(from.ioHandler)},
+        pendingTasks{std::move(from.pendingTasks)},
+        hLog{std::move(from.hLog)} {}
 
   /// Disallow copy and assignment constructors.
   StorageDevice(const StorageDevice&) = delete;
@@ -1191,7 +1210,7 @@ class StorageDevice {
   /// directories are deleted.
   void CreateIndexCheckpointDirectory(const Guid& token) {
     std::string dir = index_checkpoint_path(token);
-    std::experimental::filesystem::path path{ dir };
+    std::experimental::filesystem::path path{dir};
     std::experimental::filesystem::remove_all(path);
     std::experimental::filesystem::create_directories(path);
   }
@@ -1200,7 +1219,7 @@ class StorageDevice {
   /// directories are deleted.
   void CreateCprCheckpointDirectory(const Guid& token) {
     std::string dir = cpr_checkpoint_path(token);
-    std::experimental::filesystem::path path{ dir };
+    std::experimental::filesystem::path path{dir};
     std::experimental::filesystem::remove_all(path);
     std::experimental::filesystem::create_directories(path);
   }
@@ -1218,10 +1237,12 @@ class StorageDevice {
     for (auto i = 0; i < pendingTasks.unsafe_size(); i++) {
       // Try to read a task from the pending queue.
       task_t task;
-      if (!pendingTasks.try_pop(task)) break;
+      if (!pendingTasks.try_pop(task))
+        break;
 
       // If the task has not completed yet, then enqueue it again.
-      if (!task.isReady()) pendingTasks.push(task);
+      if (!task.isReady())
+        pendingTasks.push(task);
     }
 
     return ioHandler.TryComplete();
@@ -1230,7 +1251,8 @@ class StorageDevice {
   /// Complete all pending IO operations. Useful for testing.
   void CompletePending() {
     task_t task;
-    while (pendingTasks.try_pop(task)) task.wait();
+    while (pendingTasks.try_pop(task))
+      task.wait();
   }
 
   /// Returns a reference to the handler processing async IOs.
@@ -1239,8 +1261,7 @@ class StorageDevice {
   }
 
   /// The size of an IO that will be issued to the remote layer.
-  static const uint64_t maxRemoteIO = std::min(remote_t::maxWriteBytes(),
-                                               Address::kMaxOffset + 1);
+  static const uint64_t maxRemoteIO = std::min(remote_t::maxWriteBytes(), Address::kMaxOffset + 1);
 
  private:
   /// Formats a given filesystem path.

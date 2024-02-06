@@ -30,6 +30,5 @@ inline void aligned_free(void* ptr) {
 #endif
 }
 
-}
-} // namespace FASTER::core
-
+} // namespace core
+} // namespace FASTER

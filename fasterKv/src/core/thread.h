@@ -56,14 +56,14 @@ class Thread {
 #endif
     uint32_t start = next_index_++;
     uint32_t end = start + 2 * kMaxNumThreads;
-    for(uint32_t id = start; id < end; ++id) {
+    for (uint32_t id = start; id < end; ++id) {
       bool expected = false;
-      if(id_used_[id % kMaxNumThreads].compare_exchange_strong(expected, true)) {
+      if (id_used_[id % kMaxNumThreads].compare_exchange_strong(expected, true)) {
         return id % kMaxNumThreads;
       }
     }
     // Already have 64 active threads.
-    throw std::runtime_error{ "Too many threads!" };
+    throw std::runtime_error{"Too many threads!"};
   }
 
   inline static void ReleaseEntry(uint32_t id) {
@@ -90,8 +90,7 @@ class Thread {
   friend class ThreadId;
 };
 
-inline Thread::ThreadId::ThreadId()
-  : id_{ kInvalidId } {
+inline Thread::ThreadId::ThreadId() : id_{kInvalidId} {
   id_ = Thread::ReserveEntry();
 }
 
@@ -99,5 +98,5 @@ inline Thread::ThreadId::~ThreadId() {
   Thread::ReleaseEntry(id_);
 }
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

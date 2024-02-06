@@ -8,8 +8,8 @@
 #include <string>
 
 #include "../core/gc_state.h"
-#include "../core/light_epoch.h"
 #include "../core/guid.h"
+#include "../core/light_epoch.h"
 #include "../environment/file.h"
 
 namespace FASTER {
@@ -17,8 +17,7 @@ namespace device {
 
 /// A dummy (null) disk, used when you want an in-memory-only FASTER store.
 
-struct NullHandler {
-};
+struct NullHandler {};
 
 class NullFile {
  public:
@@ -32,18 +31,26 @@ class NullFile {
     return core::Status::Ok;
   }
   void Truncate(uint64_t new_begin_offset, core::GcState::truncate_callback_t callback) {
-    if(callback) {
+    if (callback) {
       callback(new_begin_offset);
     }
   }
 
-  core::Status ReadAsync(uint64_t source, void* dest, uint32_t length,
-                   core::AsyncIOCallback callback, core::IAsyncContext& context) const {
+  core::Status ReadAsync(
+      uint64_t source,
+      void* dest,
+      uint32_t length,
+      core::AsyncIOCallback callback,
+      core::IAsyncContext& context) const {
     callback(&context, core::Status::Ok, length);
     return core::Status::Ok;
   }
-  core::Status WriteAsync(const void* source, uint64_t dest, uint32_t length,
-                    core::AsyncIOCallback callback, core::IAsyncContext& context) {
+  core::Status WriteAsync(
+      const void* source,
+      uint64_t dest,
+      uint32_t length,
+      core::AsyncIOCallback callback,
+      core::IAsyncContext& context) {
     callback(&context, core::Status::Ok, length);
     return core::Status::Ok;
   }
@@ -53,8 +60,7 @@ class NullFile {
     return 64;
   }
 
-  void set_handler(NullHandler* handler) {
-  }
+  void set_handler(NullHandler* handler) {}
 };
 
 class NullDisk {
@@ -63,9 +69,7 @@ class NullDisk {
   typedef NullFile file_t;
   typedef NullFile log_file_t;
 
-  NullDisk(const std::string& filename, core::LightEpoch& epoch,
-           const std::string& config) {
-  }
+  NullDisk(const std::string& filename, core::LightEpoch& epoch, const std::string& config) {}
 
   static uint32_t sector_size() {
     return 64;
@@ -122,5 +126,5 @@ class NullDisk {
   file_t log_;
 };
 
-}
-} // namespace FASTER::device
+} // namespace device
+} // namespace FASTER

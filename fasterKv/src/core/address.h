@@ -40,20 +40,11 @@ class Address {
   static constexpr uint32_t kMaxPage = ((uint32_t)1 << kPageBits) - 1;
 
   /// Default constructor.
-  Address()
-    : control_{ 0 } {
-  }
-  Address(uint32_t page, uint32_t offset)
-    : reserved_{ 0 }
-    , page_{ page }
-    , offset_{ offset } {
-  }
+  Address() : control_{0} {}
+  Address(uint32_t page, uint32_t offset) : reserved_{0}, page_{page}, offset_{offset} {}
   /// Copy constructor.
-  Address(const Address& other)
-    : control_{ other.control_ } {
-  }
-  Address(uint64_t control)
-    : control_{ control } {
+  Address(const Address& other) : control_{other.control_} {}
+  Address(uint64_t control) : control_{control} {
     assert(reserved_ == 0);
   }
 
@@ -67,7 +58,7 @@ class Address {
     return *this;
   }
   inline Address operator+(const uint64_t delta) {
-    Address addr (*this);
+    Address addr(*this);
     addr += delta;
     return addr;
   }
@@ -116,27 +107,28 @@ class Address {
 
  private:
   union {
-      struct {
-        uint64_t offset_ : kOffsetBits;         // 25 bits
-        uint64_t page_ : kPageBits;  // 23 bits
-        uint64_t reserved_ : 64 - kAddressBits; // 16 bits
-      };
-      uint64_t control_;
+    struct {
+      uint64_t offset_ : kOffsetBits; // 25 bits
+      uint64_t page_ : kPageBits; // 23 bits
+      uint64_t reserved_ : 64 - kAddressBits; // 16 bits
     };
+    uint64_t control_;
+  };
 };
 static_assert(sizeof(Address) == 8, "sizeof(Address) != 8");
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER
 
 /// Implement std::min() for Address type.
 namespace std {
 template <>
-inline const FASTER::core::Address& min(const FASTER::core::Address& a,
-                                        const FASTER::core::Address& b) {
+inline const FASTER::core::Address& min(
+    const FASTER::core::Address& a,
+    const FASTER::core::Address& b) {
   return (b < a) ? b : a;
 }
-}
+} // namespace std
 
 namespace FASTER {
 namespace core {
@@ -144,13 +136,11 @@ namespace core {
 /// Atomic (logical) address.
 class AtomicAddress {
  public:
-  AtomicAddress(const Address& address)
-    : control_{ address.control() } {
-  }
+  AtomicAddress(const Address& address) : control_{address.control()} {}
 
   /// Atomic access.
   inline Address load() const {
-    return Address{ control_.load() };
+    return Address{control_.load()};
   }
   inline void store(Address value) {
     control_.store(value.control());
@@ -158,7 +148,7 @@ class AtomicAddress {
   inline bool compare_exchange_strong(Address& expected, Address desired) {
     uint64_t expected_control = expected.control();
     bool result = control_.compare_exchange_strong(expected_control, desired.control());
-    expected = Address{ expected_control };
+    expected = Address{expected_control};
     return result;
   }
 
@@ -178,5 +168,5 @@ class AtomicAddress {
   std::atomic<uint64_t> control_;
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

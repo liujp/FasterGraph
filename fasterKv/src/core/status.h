@@ -26,5 +26,5 @@ enum class InternalStatus : uint8_t {
   CPR_SHIFT_DETECTED
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

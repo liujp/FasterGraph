@@ -22,37 +22,27 @@ struct HashBucketEntry {
   /// Invalid value in the hash table
   static constexpr uint64_t kInvalidEntry = 0;
 
-  HashBucketEntry()
-    : control_{ 0 } {
-  }
+  HashBucketEntry() : control_{0} {}
   HashBucketEntry(Address address, uint16_t tag, bool tentative)
-    : address_{ address.control() }
-    , tag_{ tag }
-    , reserved_{ 0 }
-    , tentative_{ tentative } {
-  }
-  HashBucketEntry(uint64_t code)
-    : control_{ code } {
-  }
-  HashBucketEntry(const HashBucketEntry& other)
-    : control_{ other.control_ } {
-  }
+      : address_{address.control()}, tag_{tag}, reserved_{0}, tentative_{tentative} {}
+  HashBucketEntry(uint64_t code) : control_{code} {}
+  HashBucketEntry(const HashBucketEntry& other) : control_{other.control_} {}
 
   inline HashBucketEntry& operator=(const HashBucketEntry& other) {
     control_ = other.control_;
     return *this;
   }
-  inline bool operator ==(const HashBucketEntry& other) const {
+  inline bool operator==(const HashBucketEntry& other) const {
     return control_ == other.control_;
   }
-  inline bool operator !=(const HashBucketEntry& other) const {
+  inline bool operator!=(const HashBucketEntry& other) const {
     return control_ != other.control_;
   }
   inline bool unused() const {
     return control_ == 0;
   }
   inline Address address() const {
-    return Address{ address_ };
+    return Address{address_};
   }
   inline uint16_t tag() const {
     return static_cast<uint16_t>(tag_);
@@ -65,31 +55,27 @@ struct HashBucketEntry {
   }
 
   union {
-      struct {
-        uint64_t address_ : 48; // corresponds to logical address
-        uint64_t tag_ : 14;
-        uint64_t reserved_ : 1;
-        uint64_t tentative_ : 1;
-      };
-      uint64_t control_;
+    struct {
+      uint64_t address_ : 48; // corresponds to logical address
+      uint64_t tag_ : 14;
+      uint64_t reserved_ : 1;
+      uint64_t tentative_ : 1;
     };
+    uint64_t control_;
+  };
 };
 static_assert(sizeof(HashBucketEntry) == 8, "sizeof(HashBucketEntry) != 8");
 
 /// Atomic hash-bucket entry.
 class AtomicHashBucketEntry {
  public:
-  AtomicHashBucketEntry(const HashBucketEntry& entry)
-    : control_{ entry.control_ } {
-  }
+  AtomicHashBucketEntry(const HashBucketEntry& entry) : control_{entry.control_} {}
   /// Default constructor
-  AtomicHashBucketEntry()
-    : control_{ HashBucketEntry::kInvalidEntry } {
-  }
+  AtomicHashBucketEntry() : control_{HashBucketEntry::kInvalidEntry} {}
 
   /// Atomic access.
   inline HashBucketEntry load() const {
-    return HashBucketEntry{ control_.load() };
+    return HashBucketEntry{control_.load()};
   }
   inline void store(const HashBucketEntry& desired) {
     control_.store(desired.control_);
@@ -97,7 +83,7 @@ class AtomicHashBucketEntry {
   inline bool compare_exchange_strong(HashBucketEntry& expected, HashBucketEntry desired) {
     uint64_t expected_control = expected.control_;
     bool result = control_.compare_exchange_strong(expected_control, desired.control_);
-    expected = HashBucketEntry{ expected_control };
+    expected = HashBucketEntry{expected_control};
     return result;
   }
 
@@ -108,44 +94,35 @@ class AtomicHashBucketEntry {
 
 /// Entry stored in a hash bucket that points to the next overflow bucket (if any).
 struct HashBucketOverflowEntry {
-  HashBucketOverflowEntry()
-    : control_{ 0 } {
-  }
-  HashBucketOverflowEntry(FixedPageAddress address)
-    : address_{ address.control() }
-    , unused_{ 0 } {
-  }
-  HashBucketOverflowEntry(const HashBucketOverflowEntry& other)
-    : control_{ other.control_ } {
-  }
-  HashBucketOverflowEntry(uint64_t code)
-    : control_{ code } {
-  }
+  HashBucketOverflowEntry() : control_{0} {}
+  HashBucketOverflowEntry(FixedPageAddress address) : address_{address.control()}, unused_{0} {}
+  HashBucketOverflowEntry(const HashBucketOverflowEntry& other) : control_{other.control_} {}
+  HashBucketOverflowEntry(uint64_t code) : control_{code} {}
 
   inline HashBucketOverflowEntry& operator=(const HashBucketOverflowEntry& other) {
     control_ = other.control_;
     return *this;
   }
-  inline bool operator ==(const HashBucketOverflowEntry& other) const {
+  inline bool operator==(const HashBucketOverflowEntry& other) const {
     return control_ == other.control_;
   }
-  inline bool operator !=(const HashBucketOverflowEntry& other) const {
+  inline bool operator!=(const HashBucketOverflowEntry& other) const {
     return control_ != other.control_;
   }
   inline bool unused() const {
     return address_ == 0;
   }
   inline FixedPageAddress address() const {
-    return FixedPageAddress{ address_ };
+    return FixedPageAddress{address_};
   }
 
   union {
-      struct {
-        uint64_t address_ : 48; // corresponds to logical address
-        uint64_t unused_ : 16;
-      };
-      uint64_t control_;
+    struct {
+      uint64_t address_ : 48; // corresponds to logical address
+      uint64_t unused_ : 16;
     };
+    uint64_t control_;
+  };
 };
 static_assert(sizeof(HashBucketOverflowEntry) == 8, "sizeof(HashBucketOverflowEntry) != 8");
 
@@ -156,26 +133,23 @@ class AtomicHashBucketOverflowEntry {
   static constexpr uint64_t kLocked = (uint64_t)1 << 63;
 
  public:
-  AtomicHashBucketOverflowEntry(const HashBucketOverflowEntry& entry)
-    : control_{ entry.control_ } {
-  }
+  AtomicHashBucketOverflowEntry(const HashBucketOverflowEntry& entry) : control_{entry.control_} {}
   /// Default constructor
-  AtomicHashBucketOverflowEntry()
-    : control_{ HashBucketEntry::kInvalidEntry } {
-  }
+  AtomicHashBucketOverflowEntry() : control_{HashBucketEntry::kInvalidEntry} {}
 
   /// Atomic access.
   inline HashBucketOverflowEntry load() const {
-    return HashBucketOverflowEntry{ control_.load() };
+    return HashBucketOverflowEntry{control_.load()};
   }
   inline void store(const HashBucketOverflowEntry& desired) {
     control_.store(desired.control_);
   }
-  inline bool compare_exchange_strong(HashBucketOverflowEntry& expected,
-                                      HashBucketOverflowEntry desired) {
+  inline bool compare_exchange_strong(
+      HashBucketOverflowEntry& expected,
+      HashBucketOverflowEntry desired) {
     uint64_t expected_control = expected.control_;
     bool result = control_.compare_exchange_strong(expected_control, desired.control_);
-    expected = HashBucketOverflowEntry{ expected_control };
+    expected = HashBucketOverflowEntry{expected_control};
     return result;
   }
 
@@ -194,8 +168,9 @@ struct alignas(Constants::kCacheLineBytes) HashBucket {
   /// Overflow entry points to next overflow bucket, if any.
   AtomicHashBucketOverflowEntry overflow_entry;
 };
-static_assert(sizeof(HashBucket) == Constants::kCacheLineBytes,
-              "sizeof(HashBucket) != Constants::kCacheLineBytes");
+static_assert(
+    sizeof(HashBucket) == Constants::kCacheLineBytes,
+    "sizeof(HashBucket) != Constants::kCacheLineBytes");
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

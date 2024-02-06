@@ -11,20 +11,12 @@ namespace core {
 
 /// Used by FASTER to track status, during recovery action.
 
-enum class PageRecoveryStatus {
-  NotStarted = 0,
-  IssuedRead,
-  ReadDone,
-  IssuedFlush,
-  FlushDone
-};
+enum class PageRecoveryStatus { NotStarted = 0, IssuedRead, ReadDone, IssuedFlush, FlushDone };
 
 class RecoveryStatus {
  public:
   RecoveryStatus(uint32_t start_page_, uint32_t end_page_)
-    : start_page{ start_page_ }
-    , end_page{ end_page_ }
-    , page_status_{ nullptr } {
+      : start_page{start_page_}, end_page{end_page_}, page_status_{nullptr} {
     assert(end_page >= start_page);
     uint32_t buffer_size = end_page - start_page;
     page_status_ = new std::atomic<PageRecoveryStatus>[buffer_size];
@@ -32,7 +24,7 @@ class RecoveryStatus {
   }
 
   ~RecoveryStatus() {
-      delete[] page_status_;
+    delete[] page_status_;
   }
 
   const std::atomic<PageRecoveryStatus>& page_status(uint32_t page) const {
@@ -53,5 +45,5 @@ class RecoveryStatus {
   std::atomic<PageRecoveryStatus>* page_status_;
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

@@ -26,8 +26,9 @@ class Utility {
     local_rand_hash = 40343 * local_rand_hash + (local_rand >> 48);
     local_rand_hash = 40343 * local_rand_hash;
     return Rotr64(local_rand_hash, 43);
-    //Func<long, long> hash =
-    //    e => 40343 * (40343 * (40343 * (40343 * (40343 * 8 + (long)((e) & 0xFFFF)) + (long)((e >> 16) & 0xFFFF)) + (long)((e >> 32) & 0xFFFF)) + (long)(e >> 48));
+    // Func<long, long> hash =
+    //     e => 40343 * (40343 * (40343 * (40343 * (40343 * 8 + (long)((e) & 0xFFFF)) + (long)((e >>
+    //     16) & 0xFFFF)) + (long)((e >> 32) & 0xFFFF)) + (long)(e >> 48));
   }
 
   static inline uint64_t HashBytes(const uint16_t* str, size_t len) {
@@ -37,7 +38,7 @@ class Utility {
     const uint64_t kMagicNum = 40343;
     uint64_t hashState = len;
 
-    for(size_t idx = 0; idx < len; ++idx) {
+    for (size_t idx = 0; idx < len; ++idx) {
       hashState = kMagicNum * hashState + str[idx];
     }
 
@@ -54,7 +55,7 @@ class Utility {
     const uint64_t kMagicNum = 40343;
     uint64_t hashState = len;
 
-    for(size_t idx = 0; idx < len; ++idx) {
+    for (size_t idx = 0; idx < len; ++idx) {
       hashState = kMagicNum * hashState + str[idx];
     }
 
@@ -69,5 +70,5 @@ class Utility {
   }
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

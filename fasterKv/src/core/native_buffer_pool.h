@@ -26,7 +26,7 @@ inline uint8_t _BitScanReverse(unsigned long* index, uint32_t mask) {
   *index = 31 - __builtin_clz(mask);
   return found;
 }
-}
+} // namespace FASTER
 
 #include <tbb/concurrent_queue.h>
 template <typename T>
@@ -45,31 +45,29 @@ class SectorAlignedMemory {
  public:
   /// Default constructor.
   SectorAlignedMemory()
-    : buffer_{ nullptr }
-    , valid_offset{ 0 }
-    , required_bytes{ 0 }
-    , available_bytes{ 0 }
-    , level_{ 0 }
-    , pool_{ nullptr } {
-  }
+      : buffer_{nullptr},
+        valid_offset{0},
+        required_bytes{0},
+        available_bytes{0},
+        level_{0},
+        pool_{nullptr} {}
   SectorAlignedMemory(uint8_t* buffer, uint32_t level, NativeSectorAlignedBufferPool* pool)
-    : buffer_{ buffer }
-    , valid_offset{ 0 }
-    , required_bytes{ 0 }
-    , available_bytes{ 0 }
-    , level_{ level }
-    , pool_{ pool } {
-  }
+      : buffer_{buffer},
+        valid_offset{0},
+        required_bytes{0},
+        available_bytes{0},
+        level_{level},
+        pool_{pool} {}
   /// No copy constructor.
   SectorAlignedMemory(const SectorAlignedMemory&) = delete;
   /// Move constructor.
   SectorAlignedMemory(SectorAlignedMemory&& other)
-    : buffer_{ other.buffer_ }
-    , valid_offset{ other.valid_offset }
-    , required_bytes{ other.required_bytes }
-    , available_bytes{ other.available_bytes }
-    , level_{ other.level_ }
-    , pool_{ other.pool_ } {
+      : buffer_{other.buffer_},
+        valid_offset{other.valid_offset},
+        required_bytes{other.required_bytes},
+        available_bytes{other.available_bytes},
+        level_{other.level_},
+        pool_{other.pool_} {
     other.buffer_ = nullptr;
     other.pool_ = nullptr;
   }
@@ -91,10 +89,12 @@ class SectorAlignedMemory {
 
  private:
   uint8_t* buffer_;
+
  public:
   uint32_t valid_offset;
   uint32_t required_bytes;
   uint32_t available_bytes;
+
  private:
   uint32_t level_;
   NativeSectorAlignedBufferPool* pool_;
@@ -111,9 +111,7 @@ class NativeSectorAlignedBufferPool {
 
  public:
   NativeSectorAlignedBufferPool(uint32_t recordSize, uint32_t sectorSize)
-    : record_size_{ recordSize }
-    , sector_size_{ sectorSize } {
-  }
+      : record_size_{recordSize}, sector_size_{sectorSize} {}
 
   inline void Return(uint32_t level, uint8_t* buffer) {
     assert(level < kLevels);
@@ -124,7 +122,7 @@ class NativeSectorAlignedBufferPool {
  private:
   uint32_t Level(uint32_t sectors) {
     assert(sectors > 0);
-    if(sectors == 1) {
+    if (sectors == 1) {
       return 0;
     }
     // BSR returns the page_index k of the most-significant 1 bit. So 2^(k+1) > (sectors - 1) >=
@@ -143,11 +141,11 @@ class NativeSectorAlignedBufferPool {
 
 /// Implementations.
 inline SectorAlignedMemory& SectorAlignedMemory::operator=(SectorAlignedMemory&& other) {
-  if(buffer_ == other.buffer_) {
+  if (buffer_ == other.buffer_) {
     // Self-assignment is a no-op.
     return *this;
   }
-  if(buffer_ != nullptr) {
+  if (buffer_ != nullptr) {
     // Return our buffer to the pool, before taking ownership of a new buffer.
     pool_->Return(level_, buffer_);
   }
@@ -165,7 +163,7 @@ inline SectorAlignedMemory& SectorAlignedMemory::operator=(SectorAlignedMemory&&
 }
 
 inline SectorAlignedMemory::~SectorAlignedMemory() {
-  if(buffer_) {
+  if (buffer_) {
     pool_->Return(level_, buffer_);
   }
 }
@@ -175,14 +173,14 @@ inline SectorAlignedMemory NativeSectorAlignedBufferPool::Get(uint32_t numRecord
   uint32_t sectors_required = (numRecords * record_size_ + sector_size_ - 1) / sector_size_;
   uint32_t level = Level(sectors_required);
   uint8_t* buffer;
-  if(queue_[level].try_pop(buffer)) {
-    return SectorAlignedMemory{ buffer, level, this };
+  if (queue_[level].try_pop(buffer)) {
+    return SectorAlignedMemory{buffer, level, this};
   } else {
-    uint8_t* buffer = reinterpret_cast<uint8_t*>(aligned_alloc(sector_size_,
-                      sector_size_ * (1 << level)));
-    return SectorAlignedMemory{ buffer, level, this };
+    uint8_t* buffer =
+        reinterpret_cast<uint8_t*>(aligned_alloc(sector_size_, sector_size_ * (1 << level)));
+    return SectorAlignedMemory{buffer, level, this};
   }
 }
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

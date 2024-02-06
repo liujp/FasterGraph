@@ -11,15 +11,9 @@ namespace core {
 
 /// Hash of a key is 8 bytes, compatible with hash bucket entry.
 struct KeyHash {
-  KeyHash()
-    : control_{ 0 } {
-  }
-  explicit KeyHash(uint64_t code)
-    : control_{ code } {
-  }
-  KeyHash(const KeyHash& other)
-    : control_{ other.control_ } {
-  }
+  KeyHash() : control_{0} {}
+  explicit KeyHash(uint64_t code) : control_{code} {}
+  KeyHash(const KeyHash& other) : control_{other.control_} {}
 
   KeyHash& operator=(const KeyHash& other) {
     control_ = other.control_;
@@ -41,15 +35,15 @@ struct KeyHash {
 
  private:
   union {
-      struct {
-        uint64_t address_ : 48;
-        uint64_t tag_ : 14;
-        uint64_t not_used_ : 2;
-      };
-      uint64_t control_;
+    struct {
+      uint64_t address_ : 48;
+      uint64_t tag_ : 14;
+      uint64_t not_used_ : 2;
     };
+    uint64_t control_;
+  };
 };
 static_assert(sizeof(KeyHash) == 8, "sizeof(KeyHash) != 8");
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

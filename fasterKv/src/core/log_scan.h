@@ -6,8 +6,8 @@
 #include <atomic>
 
 #include "alloc.h"
-#include "record.h"
 #include "persistent_memory_malloc.h"
+#include "record.h"
 
 namespace FASTER {
 namespace core {
@@ -55,39 +55,36 @@ class ScanIterator {
   /// \param disk
   ///    Pointer to the disk the log was allocated under. Required for
   ///    when we need to issue IO requests and make sure they complete.
-  ScanIterator(hlog_t* log, Buffering mode, Address begin, Address end,
-               disk_t* disk)
-   : hLog(log)
-   , numFrames(0)
-   , frames(nullptr)
-   , start(begin)
-   , until(end)
-   , current(start)
-   , currentFrame(0)
-   , completedIOs(0)
-   , disk(disk)
-  {
+  ScanIterator(hlog_t* log, Buffering mode, Address begin, Address end, disk_t* disk)
+      : hLog(log),
+        numFrames(0),
+        frames(nullptr),
+        start(begin),
+        until(end),
+        current(start),
+        currentFrame(0),
+        completedIOs(0),
+        disk(disk) {
     // Allocate one extra frame than what was requested so that we can
     // hold the page that we're currently scanning.
     switch (mode) {
-    case Buffering::SINGLE_PAGE:
-      numFrames = 2;
-      break;
+      case Buffering::SINGLE_PAGE:
+        numFrames = 2;
+        break;
 
-    case Buffering::DOUBLE_PAGE:
-      numFrames = 3;
-      break;
+      case Buffering::DOUBLE_PAGE:
+        numFrames = 3;
+        break;
 
-    case Buffering::UN_BUFFERED:
-    default:
-      numFrames = 1;
-      break;
+      case Buffering::UN_BUFFERED:
+      default:
+        numFrames = 1;
+        break;
     }
 
-    frames = new uint8_t* [numFrames];
+    frames = new uint8_t*[numFrames];
     for (auto i = 0; i < numFrames; i++) {
-      frames[i] = reinterpret_cast<uint8_t*>(aligned_alloc(hLog->sector_size,
-                                                           hlog_t::kPageSize));
+      frames[i] = reinterpret_cast<uint8_t*>(aligned_alloc(hLog->sector_size, hlog_t::kPageSize));
     }
   }
 
@@ -108,7 +105,8 @@ class ScanIterator {
   record_t* GetNext() {
     // We've exceeded the range over which we had to perform our scan.
     // No work to do over here other than returning a nullptr.
-    if (current >= until) return nullptr;
+    if (current >= until)
+      return nullptr;
 
     // If we're within the in-memory region, then just lookup the address,
     // increment it and return a pointer to the record.
@@ -141,22 +139,22 @@ class ScanIterator {
       for (auto i = 0; i < numFrames; i++) {
         auto ctxt = Context(&completedIOs);
         auto addr = current.control() + (i * hlog_t::kPageSize);
-        hLog->file->ReadAsync(addr,
-                              reinterpret_cast<void*>(frames[i]),
-                              hlog_t::kPageSize, cb, ctxt);
+        hLog->file->ReadAsync(
+            addr, reinterpret_cast<void*>(frames[i]), hlog_t::kPageSize, cb, ctxt);
       }
 
-      while (completedIOs.load() < numFrames) disk->TryComplete();
+      while (completedIOs.load() < numFrames)
+        disk->TryComplete();
       completedIOs.store(0);
     }
 
     // We have the corresponding page in our buffer. Look it up, increment
     // the current address and current frame (if necessary), return a
     // pointer to the record.
-    auto record = reinterpret_cast<record_t*>(frames[currentFrame] +
-                                              current.offset());
+    auto record = reinterpret_cast<record_t*>(frames[currentFrame] + current.offset());
     current += record->size();
-    if (current.offset() == 0) currentFrame = (currentFrame + 1) % numFrames;
+    if (current.offset() == 0)
+      currentFrame = (currentFrame + 1) % numFrames;
     return record;
   }
 
@@ -168,9 +166,7 @@ class ScanIterator {
    public:
     /// Constructs a context given a pointer to an atomic counter keeping
     /// track of the number of IOs that have completed so far.
-    Context(std::atomic<uint64_t>* ctr)
-     : counter(ctr)
-    {}
+    Context(std::atomic<uint64_t>* ctr) : counter(ctr) {}
 
     /// Destroys a Context.
     ~Context() {}

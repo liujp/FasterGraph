@@ -16,5 +16,5 @@ struct Constants {
   static constexpr uint32_t kNumMergeChunks = 256;
 };
 
-}
-} // namespace FASTER::cire
+} // namespace core
+} // namespace FASTER

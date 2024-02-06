@@ -9,4 +9,4 @@ namespace core {
 constexpr uint32_t Address::kMaxOffset;
 
 }
-} // namespace FASTER::core
+} // namespace FASTER

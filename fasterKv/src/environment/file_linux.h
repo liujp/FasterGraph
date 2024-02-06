@@ -3,13 +3,13 @@
 
 #pragma once
 
+#include <libaio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <atomic>
 #include <cstdint>
 #include <string>
-#include <libaio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #ifdef FASTER_URING
 #include <liburing.h>
@@ -28,50 +28,53 @@ constexpr const char* kPathSeparator = "/";
 class File {
  protected:
   File()
-    : fd_{ -1 }
-    , device_alignment_{ 0 }
-    , filename_{}
-    , owner_{ false }
+      : fd_{-1},
+        device_alignment_{0},
+        filename_{},
+        owner_{false}
 #ifdef IO_STATISTICS
-    , bytes_written_ { 0 }
-    , read_count_{ 0 }
-    , bytes_read_{ 0 }
+        ,
+        bytes_written_{0},
+        read_count_{0},
+        bytes_read_{0}
 #endif
   {
   }
 
   File(const std::string& filename)
-    : fd_{ -1 }
-    , device_alignment_{ 0 }
-    , filename_{ filename }
-    , owner_{ false }
+      : fd_{-1},
+        device_alignment_{0},
+        filename_{filename},
+        owner_{false}
 #ifdef IO_STATISTICS
-    , bytes_written_ { 0 }
-    , read_count_{ 0 }
-    , bytes_read_{ 0 }
+        ,
+        bytes_written_{0},
+        read_count_{0},
+        bytes_read_{0}
 #endif
   {
   }
 
   ~File() {
-    if(owner_) {
+    if (owner_) {
       core::Status s = Close();
     }
   }
 
   File(const File&) = delete;
-  File &operator=(const File&) = delete;
+  File& operator=(const File&) = delete;
 
   /// Move constructor.
   File(File&& other)
-    : fd_{ other.fd_ }
-    , device_alignment_{ other.device_alignment_ }
-    , filename_{ std::move(other.filename_) }
-    , owner_{ other.owner_ }
+      : fd_{other.fd_},
+        device_alignment_{other.device_alignment_},
+        filename_{std::move(other.filename_)},
+        owner_{other.owner_}
 #ifdef IO_STATISTICS
-    , bytes_written_ { other.bytes_written_ }
-    , read_count_{ other.read_count_ }
-    , bytes_read_{ other.bytes_read_ }
+        ,
+        bytes_written_{other.bytes_written_},
+        read_count_{other.read_count_},
+        bytes_read_{other.bytes_read_}
 #endif
   {
     other.owner_ = false;
@@ -157,11 +160,8 @@ class QueueIoHandler {
   constexpr static int kMaxEvents = 128;
 
  public:
-  QueueIoHandler()
-    : io_object_{ 0 } {
-  }
-  QueueIoHandler(size_t max_threads)
-    : io_object_{ 0 } {
+  QueueIoHandler() : io_object_{0} {}
+  QueueIoHandler(size_t max_threads) : io_object_{0} {
     int result = ::io_setup(kMaxEvents, &io_object_);
     assert(result >= 0);
   }
@@ -173,7 +173,7 @@ class QueueIoHandler {
   }
 
   ~QueueIoHandler() {
-    if(io_object_ != 0)
+    if (io_object_ != 0)
       ::io_destroy(io_object_);
   }
 
@@ -181,11 +181,16 @@ class QueueIoHandler {
   static void IoCompletionCallback(io_context_t ctx, struct iocb* iocb, long res, long res2);
 
   struct IoCallbackContext {
-    IoCallbackContext(FileOperationType operation, int fd, size_t offset, uint32_t length,
-                      uint8_t* buffer, core::IAsyncContext* context_, core::AsyncIOCallback callback_)
-      : caller_context{ context_ }
-      , callback{ callback_ } {
-      if(FileOperationType::Read == operation) {
+    IoCallbackContext(
+        FileOperationType operation,
+        int fd,
+        size_t offset,
+        uint32_t length,
+        uint8_t* buffer,
+        core::IAsyncContext* context_,
+        core::AsyncIOCallback callback_)
+        : caller_context{context_}, callback{callback_} {
+      if (FileOperationType::Read == operation) {
         ::io_prep_pread(&this->parent_iocb, fd, buffer, length, offset);
       } else {
         ::io_prep_pwrite(&this->parent_iocb, fd, buffer, length, offset);
@@ -222,19 +227,10 @@ class QueueIoHandler {
 /// context.
 class QueueFile : public File {
  public:
-  QueueFile()
-    : File()
-    , io_object_{ nullptr } {
-  }
-  QueueFile(const std::string& filename)
-    : File(filename)
-    , io_object_{ nullptr } {
-  }
+  QueueFile() : File(), io_object_{nullptr} {}
+  QueueFile(const std::string& filename) : File(filename), io_object_{nullptr} {}
   /// Move constructor
-  QueueFile(QueueFile&& other)
-    : File(std::move(other))
-    , io_object_{ other.io_object_ } {
-  }
+  QueueFile(QueueFile&& other) : File(std::move(other)), io_object_{other.io_object_} {}
   /// Move assignment operator.
   QueueFile& operator=(QueueFile&& other) {
     File::operator=(std::move(other));
@@ -242,17 +238,33 @@ class QueueFile : public File {
     return *this;
   }
 
-  core::Status Open(FileCreateDisposition create_disposition, const FileOptions& options,
-              QueueIoHandler* handler, bool* exists = nullptr);
+  core::Status Open(
+      FileCreateDisposition create_disposition,
+      const FileOptions& options,
+      QueueIoHandler* handler,
+      bool* exists = nullptr);
 
-  core::Status Read(size_t offset, uint32_t length, uint8_t* buffer,
-                    core::IAsyncContext& context, core::AsyncIOCallback callback) const;
-  core::Status Write(size_t offset, uint32_t length, const uint8_t* buffer,
-                     core::IAsyncContext& context, core::AsyncIOCallback callback);
+  core::Status Read(
+      size_t offset,
+      uint32_t length,
+      uint8_t* buffer,
+      core::IAsyncContext& context,
+      core::AsyncIOCallback callback) const;
+  core::Status Write(
+      size_t offset,
+      uint32_t length,
+      const uint8_t* buffer,
+      core::IAsyncContext& context,
+      core::AsyncIOCallback callback);
 
  private:
-  core::Status ScheduleOperation(FileOperationType operationType, uint8_t* buffer, size_t offset,
-                           uint32_t length, core::IAsyncContext& context, core::AsyncIOCallback callback);
+  core::Status ScheduleOperation(
+      FileOperationType operationType,
+      uint8_t* buffer,
+      size_t offset,
+      uint32_t length,
+      core::IAsyncContext& context,
+      core::AsyncIOCallback callback);
 
   io_context_t io_object_;
 };
@@ -260,26 +272,27 @@ class QueueFile : public File {
 #ifdef FASTER_URING
 
 class alignas(64) SpinLock {
-public:
-    SpinLock(): locked_(false) {}
+ public:
+  SpinLock() : locked_(false) {}
 
-    void Acquire() noexcept {
-        for (;;) {
-            if (!locked_.exchange(true, std::memory_order_acquire)) {
-                return;
-            }
+  void Acquire() noexcept {
+    for (;;) {
+      if (!locked_.exchange(true, std::memory_order_acquire)) {
+        return;
+      }
 
-            while (locked_.load(std::memory_order_relaxed)) {
-                __builtin_ia32_pause();
-            }
-        }
+      while (locked_.load(std::memory_order_relaxed)) {
+        __builtin_ia32_pause();
+      }
     }
+  }
 
-    void Release() noexcept {
-        locked_.store(false, std::memory_order_release);
-    }
-private:
-    std::atomic_bool locked_;
+  void Release() noexcept {
+    locked_.store(false, std::memory_order_release);
+  }
+
+ private:
+  std::atomic_bool locked_;
 };
 
 class UringFile;
@@ -324,13 +337,20 @@ class UringIoHandler {
   static void IoCompletionCallback(io_context_t ctx, struct iocb* iocb, long res, long res2);
   */
   struct IoCallbackContext {
-    IoCallbackContext(bool is_read, int fd, uint8_t* buffer, size_t length, size_t offset, core::IAsyncContext* context_, core::AsyncIOCallback callback_)
-      : is_read_(is_read)
-      , fd_(fd)
-      , vec_{buffer, length}
-      , offset_(offset)
-      , caller_context{ context_ }
-      , callback{ callback_ } {}
+    IoCallbackContext(
+        bool is_read,
+        int fd,
+        uint8_t* buffer,
+        size_t length,
+        size_t offset,
+        core::IAsyncContext* context_,
+        core::AsyncIOCallback callback_)
+        : is_read_(is_read),
+          fd_(fd),
+          vec_{buffer, length},
+          offset_(offset),
+          caller_context{context_},
+          callback{callback_} {}
 
     bool is_read_;
 
@@ -366,20 +386,11 @@ class UringIoHandler {
 /// io_uring
 class UringFile : public File {
  public:
-  UringFile()
-    : File()
-    , ring_{ nullptr } {
-  }
-  UringFile(const std::string& filename)
-    : File(filename)
-    , ring_{ nullptr } {
-  }
+  UringFile() : File(), ring_{nullptr} {}
+  UringFile(const std::string& filename) : File(filename), ring_{nullptr} {}
   /// Move constructor
   UringFile(UringFile&& other)
-    : File(std::move(other))
-    , ring_{ other.ring_ }
-    , sq_lock_{ other.sq_lock_ } {
-  }
+      : File(std::move(other)), ring_{other.ring_}, sq_lock_{other.sq_lock_} {}
   /// Move assignment operator.
   UringFile& operator=(UringFile&& other) {
     File::operator=(std::move(other));
@@ -388,17 +399,33 @@ class UringFile : public File {
     return *this;
   }
 
-  core::Status Open(FileCreateDisposition create_disposition, const FileOptions& options,
-              UringIoHandler* handler, bool* exists = nullptr);
+  core::Status Open(
+      FileCreateDisposition create_disposition,
+      const FileOptions& options,
+      UringIoHandler* handler,
+      bool* exists = nullptr);
 
-  core::Status Read(size_t offset, uint32_t length, uint8_t* buffer,
-              core::IAsyncContext& context, core::AsyncIOCallback callback) const;
-  core::Status Write(size_t offset, uint32_t length, const uint8_t* buffer,
-               core::IAsyncContext& context, core::AsyncIOCallback callback);
+  core::Status Read(
+      size_t offset,
+      uint32_t length,
+      uint8_t* buffer,
+      core::IAsyncContext& context,
+      core::AsyncIOCallback callback) const;
+  core::Status Write(
+      size_t offset,
+      uint32_t length,
+      const uint8_t* buffer,
+      core::IAsyncContext& context,
+      core::AsyncIOCallback callback);
 
  private:
-  core::Status ScheduleOperation(FileOperationType operationType, uint8_t* buffer, size_t offset,
-                                 uint32_t length, core::IAsyncContext& context, core::AsyncIOCallback callback);
+  core::Status ScheduleOperation(
+      FileOperationType operationType,
+      uint8_t* buffer,
+      size_t offset,
+      uint32_t length,
+      core::IAsyncContext& context,
+      core::AsyncIOCallback callback);
 
   struct io_uring* ring_;
   SpinLock* sq_lock_;
@@ -406,5 +433,5 @@ class UringFile : public File {
 
 #endif
 
-}
-} // namespace FASTER::environment
+} // namespace environment
+} // namespace FASTER

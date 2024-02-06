@@ -29,21 +29,14 @@ class FileSystemFile {
   typedef typename handler_t::async_file_t file_t;
 
   /// Default constructor
-  FileSystemFile()
-    : file_{}
-    , file_options_{} {
-  }
+  FileSystemFile() : file_{}, file_options_{} {}
 
   FileSystemFile(const std::string& filename, const environment::FileOptions& file_options)
-    : file_{ filename }
-    , file_options_{ file_options } {
-  }
+      : file_{filename}, file_options_{file_options} {}
 
   /// Move constructor.
   FileSystemFile(FileSystemFile&& other)
-    : file_{ std::move(other.file_) }
-    , file_options_{ other.file_options_ } {
-  }
+      : file_{std::move(other.file_)}, file_options_{other.file_options_} {}
 
   /// Move assignment operator.
   FileSystemFile& operator=(FileSystemFile&& other) {
@@ -53,8 +46,8 @@ class FileSystemFile {
   }
 
   core::Status Open(handler_t* handler) {
-    return file_.Open(FASTER::environment::FileCreateDisposition::OpenOrCreate, file_options_,
-                      handler, nullptr);
+    return file_.Open(
+        FASTER::environment::FileCreateDisposition::OpenOrCreate, file_options_, handler, nullptr);
   }
   core::Status Close() {
     return file_.Close();
@@ -64,17 +57,25 @@ class FileSystemFile {
   }
   void Truncate(uint64_t new_begin_offset, core::GcState::truncate_callback_t callback) {
     // Truncation is a no-op.
-    if(callback) {
+    if (callback) {
       callback(new_begin_offset);
     }
   }
 
-  core::Status ReadAsync(uint64_t source, void* dest, uint32_t length,
-                   core::AsyncIOCallback callback, core::IAsyncContext& context) const {
+  core::Status ReadAsync(
+      uint64_t source,
+      void* dest,
+      uint32_t length,
+      core::AsyncIOCallback callback,
+      core::IAsyncContext& context) const {
     return file_.Read(source, length, reinterpret_cast<uint8_t*>(dest), context, callback);
   }
-  core::Status WriteAsync(const void* source, uint64_t dest, uint32_t length,
-                    core::AsyncIOCallback callback, core::IAsyncContext& context) {
+  core::Status WriteAsync(
+      const void* source,
+      uint64_t dest,
+      uint32_t length,
+      core::AsyncIOCallback callback,
+      core::IAsyncContext& context) {
     return file_.Write(dest, length, reinterpret_cast<const uint8_t*>(source), context, callback);
   }
 
@@ -89,36 +90,31 @@ class FileSystemFile {
 
 // Similar to std::lock_guard, but allows manual early unlock
 //
-class ReleasableLockGuard
-{
-public:
-    ReleasableLockGuard(std::mutex* mutex)
-    {
-        m_mutex = mutex;
-        m_mutex->lock();
-        m_released = false;
-    }
+class ReleasableLockGuard {
+ public:
+  ReleasableLockGuard(std::mutex* mutex) {
+    m_mutex = mutex;
+    m_mutex->lock();
+    m_released = false;
+  }
 
-    ~ReleasableLockGuard()
-    {
-        if (!m_released)
-        {
-            m_mutex->unlock();
-        }
+  ~ReleasableLockGuard() {
+    if (!m_released) {
+      m_mutex->unlock();
     }
+  }
 
-    void Unlock()
-    {
-        assert(!m_released);
-        m_mutex->unlock();
-        m_released = true;
-    }
+  void Unlock() {
+    assert(!m_released);
+    m_mutex->unlock();
+    m_released = true;
+  }
 
-private:
-    std::mutex* m_mutex;
-    bool m_released;
+ private:
+  std::mutex* m_mutex;
+  bool m_released;
 };
- 
+
 /// Manages a bundle of segment files.
 template <class H>
 class FileSystemSegmentBundle {
@@ -127,29 +123,34 @@ class FileSystemSegmentBundle {
   typedef FileSystemFile<handler_t> file_t;
   typedef FileSystemSegmentBundle<handler_t> bundle_t;
 
-  FileSystemSegmentBundle(const std::string& filename,
-                          const environment::FileOptions& file_options, handler_t* handler,
-                          uint64_t begin_segment_, uint64_t end_segment_)
-    : filename_{ filename }
-    , file_options_{ file_options }
-    , begin_segment{ begin_segment_ }
-    , end_segment{ end_segment_ }
-    , owner_{ true } {
-    for(uint64_t idx = begin_segment; idx < end_segment; ++idx) {
-      new(files() + (idx - begin_segment)) file_t{ filename_ + std::to_string(idx),
-          file_options_ };
+  FileSystemSegmentBundle(
+      const std::string& filename,
+      const environment::FileOptions& file_options,
+      handler_t* handler,
+      uint64_t begin_segment_,
+      uint64_t end_segment_)
+      : filename_{filename},
+        file_options_{file_options},
+        begin_segment{begin_segment_},
+        end_segment{end_segment_},
+        owner_{true} {
+    for (uint64_t idx = begin_segment; idx < end_segment; ++idx) {
+      new (files() + (idx - begin_segment)) file_t{filename_ + std::to_string(idx), file_options_};
       core::Status result = file(idx).Open(handler);
       assert(result == core::Status::Ok);
     }
   }
 
-  FileSystemSegmentBundle(handler_t* handler, uint64_t begin_segment_, uint64_t end_segment_,
-                          bundle_t& other)
-    : filename_{ std::move(other.filename_) }
-    , file_options_{ other.file_options_ }
-    , begin_segment{ begin_segment_ }
-    , end_segment{ end_segment_ }
-    , owner_{ true } {
+  FileSystemSegmentBundle(
+      handler_t* handler,
+      uint64_t begin_segment_,
+      uint64_t end_segment_,
+      bundle_t& other)
+      : filename_{std::move(other.filename_)},
+        file_options_{other.file_options_},
+        begin_segment{begin_segment_},
+        end_segment{end_segment_},
+        owner_{true} {
     assert(end_segment >= other.end_segment);
 
     uint64_t begin_new = begin_segment;
@@ -157,19 +158,17 @@ class FileSystemSegmentBundle {
     uint64_t end_copy = std::min(end_segment, other.end_segment);
     uint64_t end_new = end_segment;
 
-    for(uint64_t idx = begin_segment; idx < begin_copy; ++idx) {
-      new(files() + (idx - begin_segment)) file_t{ filename_ + std::to_string(idx),
-          file_options_ };
+    for (uint64_t idx = begin_segment; idx < begin_copy; ++idx) {
+      new (files() + (idx - begin_segment)) file_t{filename_ + std::to_string(idx), file_options_};
       core::Status result = file(idx).Open(handler);
       assert(result == core::Status::Ok);
     }
-    for(uint64_t idx = begin_copy; idx < end_copy; ++idx) {
+    for (uint64_t idx = begin_copy; idx < end_copy; ++idx) {
       // Move file handles for segments already opened.
-      new(files() + (idx - begin_segment)) file_t{ std::move(other.file(idx)) };
+      new (files() + (idx - begin_segment)) file_t{std::move(other.file(idx))};
     }
-    for(uint64_t idx = end_copy; idx < end_new; ++idx) {
-      new(files() + (idx - begin_segment)) file_t{ filename_ + std::to_string(idx),
-          file_options_ };
+    for (uint64_t idx = end_copy; idx < end_new; ++idx) {
+      new (files() + (idx - begin_segment)) file_t{filename_ + std::to_string(idx), file_options_};
       core::Status result = file(idx).Open(handler);
       assert(result == core::Status::Ok);
     }
@@ -178,8 +177,8 @@ class FileSystemSegmentBundle {
   }
 
   ~FileSystemSegmentBundle() {
-    if(owner_) {
-      for(uint64_t idx = begin_segment; idx < end_segment; ++idx) {
+    if (owner_) {
+      for (uint64_t idx = begin_segment; idx < end_segment; ++idx) {
         file(idx).~file_t();
       }
     }
@@ -188,9 +187,9 @@ class FileSystemSegmentBundle {
   core::Status Close() {
     assert(owner_);
     core::Status result = core::Status::Ok;
-    for(uint64_t idx = begin_segment; idx < end_segment; ++idx) {
+    for (uint64_t idx = begin_segment; idx < end_segment; ++idx) {
       core::Status r = file(idx).Close();
-      if(r != core::Status::Ok) {
+      if (r != core::Status::Ok) {
         // We'll report the last error.
         result = r;
       }
@@ -201,9 +200,9 @@ class FileSystemSegmentBundle {
   core::Status Delete() {
     assert(owner_);
     core::Status result = core::Status::Ok;
-    for(uint64_t idx = begin_segment; idx < end_segment; ++idx) {
+    for (uint64_t idx = begin_segment; idx < end_segment; ++idx) {
       core::Status r = file(idx).Delete();
-      if(r != core::Status::Ok) {
+      if (r != core::Status::Ok) {
         // We'll report the last error.
         result = r;
       }
@@ -229,6 +228,7 @@ class FileSystemSegmentBundle {
  public:
   const uint64_t begin_segment;
   const uint64_t end_segment;
+
  private:
   std::string filename_;
   environment::FileOptions file_options_;
@@ -245,19 +245,20 @@ class FileSystemSegmentedFile {
   static constexpr uint64_t kSegmentSize = S;
   static_assert(core::Utility::IsPowerOfTwo(S), "template parameter S is not a power of two!");
 
-  FileSystemSegmentedFile(const std::string& filename,
-                          const environment::FileOptions& file_options, core::LightEpoch* epoch)
-    : begin_segment_{ 0 }
-    , files_{ nullptr }
-    , handler_{ nullptr }
-    , filename_{ filename }
-    , file_options_{ file_options }
-    , epoch_{ epoch } {
-  }
+  FileSystemSegmentedFile(
+      const std::string& filename,
+      const environment::FileOptions& file_options,
+      core::LightEpoch* epoch)
+      : begin_segment_{0},
+        files_{nullptr},
+        handler_{nullptr},
+        filename_{filename},
+        file_options_{file_options},
+        epoch_{epoch} {}
 
   ~FileSystemSegmentedFile() {
     bundle_t* files = files_.load();
-    if(files) {
+    if (files) {
       files->~bundle_t();
       std::free(files);
     }
@@ -279,16 +280,20 @@ class FileSystemSegmentedFile {
     TruncateSegments(new_begin_segment, callback);
   }
 
-  core::Status ReadAsync(uint64_t source, void* dest, uint32_t length, core::AsyncIOCallback callback,
-                   core::IAsyncContext& context) const {
+  core::Status ReadAsync(
+      uint64_t source,
+      void* dest,
+      uint32_t length,
+      core::AsyncIOCallback callback,
+      core::IAsyncContext& context) const {
     uint64_t segment = source / kSegmentSize;
     assert(source % kSegmentSize + length <= kSegmentSize);
 
     bundle_t* files = files_.load();
 
-    if(!files || !files->exists(segment)) {
+    if (!files || !files->exists(segment)) {
       core::Status result = const_cast<FileSystemSegmentedFile<H, S>*>(this)->OpenSegment(segment);
-      if(result != core::Status::Ok) {
+      if (result != core::Status::Ok) {
         return result;
       }
       files = files_.load();
@@ -296,16 +301,20 @@ class FileSystemSegmentedFile {
     return files->file(segment).ReadAsync(source % kSegmentSize, dest, length, callback, context);
   }
 
-  core::Status WriteAsync(const void* source, uint64_t dest, uint32_t length,
-                    core::AsyncIOCallback callback, core::IAsyncContext& context) {
+  core::Status WriteAsync(
+      const void* source,
+      uint64_t dest,
+      uint32_t length,
+      core::AsyncIOCallback callback,
+      core::IAsyncContext& context) {
     uint64_t segment = dest / kSegmentSize;
     assert(dest % kSegmentSize + length <= kSegmentSize);
 
     bundle_t* files = files_.load();
 
-    if(!files || !files->exists(segment)) {
+    if (!files || !files->exists(segment)) {
       core::Status result = OpenSegment(segment);
-      if(result != core::Status::Ok) {
+      if (result != core::Status::Ok) {
         return result;
       }
       files = files_.load();
@@ -321,44 +330,42 @@ class FileSystemSegmentedFile {
   core::Status OpenSegment(uint64_t segment) {
     class Context : public core::IAsyncContext {
      public:
-      Context(void* files_)
-        : files{ files_ } {
-      }
+      Context(void* files_) : files{files_} {}
       /// The deep-copy constructor.
-      Context(const Context& other)
-        : files{ other.files} {
-      }
+      Context(const Context& other) : files{other.files} {}
+
      protected:
       core::Status DeepCopy_Internal(core::IAsyncContext*& context_copy) final {
         return core::IAsyncContext::DeepCopy_Internal(*this, context_copy);
       }
+
      public:
       void* files;
     };
 
     auto callback = [](core::IAsyncContext* ctxt) {
-      core::CallbackContext<Context> context{ ctxt };
+      core::CallbackContext<Context> context{ctxt};
       std::free(context->files);
     };
 
     // Only one thread can modify the list of files at a given time.
-    ReleasableLockGuard lock{ &mutex_ };
+    ReleasableLockGuard lock{&mutex_};
     bundle_t* files = files_.load();
 
-    if(segment < begin_segment_) {
+    if (segment < begin_segment_) {
       // The requested segment has been truncated.
       return core::Status::IOError;
     }
-    if(files && files->exists(segment)) {
+    if (files && files->exists(segment)) {
       // Some other thread already opened this segment for us.
       return core::Status::Ok;
     }
 
-    if(!files) {
+    if (!files) {
       // First segment opened.
       void* buffer = std::malloc(bundle_t::size(1));
-      bundle_t* new_files = new(buffer) bundle_t{ filename_, file_options_, handler_,
-          segment, segment + 1 };
+      bundle_t* new_files =
+          new (buffer) bundle_t{filename_, file_options_, handler_, segment, segment + 1};
       files_.store(new_files);
       return core::Status::Ok;
     }
@@ -367,11 +374,11 @@ class FileSystemSegmentedFile {
     uint64_t new_begin_segment = std::min(files->begin_segment, segment);
     uint64_t new_end_segment = std::max(files->end_segment, segment + 1);
     void* buffer = std::malloc(bundle_t::size(new_end_segment - new_begin_segment));
-    bundle_t* new_files = new(buffer) bundle_t{ handler_, new_begin_segment, new_end_segment,
-        *files };
+    bundle_t* new_files =
+        new (buffer) bundle_t{handler_, new_begin_segment, new_end_segment, *files};
     files_.store(new_files);
     // Delete the old list only after all threads have finished looking at it.
-    Context context{ files };
+    Context context{files};
     core::IAsyncContext* context_copy;
     core::Status result = context.DeepCopy(context_copy);
     assert(result == core::Status::Ok);
@@ -384,25 +391,29 @@ class FileSystemSegmentedFile {
     return core::Status::Ok;
   }
 
-  void TruncateSegments(uint64_t new_begin_segment, core::GcState::truncate_callback_t caller_callback) {
+  void TruncateSegments(
+      uint64_t new_begin_segment,
+      core::GcState::truncate_callback_t caller_callback) {
     class Context : public core::IAsyncContext {
      public:
-      Context(bundle_t* files_, uint64_t new_begin_segment_,
-              core::GcState::truncate_callback_t caller_callback_)
-        : files{ files_ }
-        , new_begin_segment{ new_begin_segment_ }
-        , caller_callback{ caller_callback_ } {
-      }
+      Context(
+          bundle_t* files_,
+          uint64_t new_begin_segment_,
+          core::GcState::truncate_callback_t caller_callback_)
+          : files{files_},
+            new_begin_segment{new_begin_segment_},
+            caller_callback{caller_callback_} {}
       /// The deep-copy constructor.
       Context(const Context& other)
-        : files{ other.files }
-        , new_begin_segment{ other.new_begin_segment }
-        , caller_callback{ other.caller_callback } {
-      }
+          : files{other.files},
+            new_begin_segment{other.new_begin_segment},
+            caller_callback{other.caller_callback} {}
+
      protected:
       core::Status DeepCopy_Internal(core::IAsyncContext*& context_copy) final {
         return core::IAsyncContext::DeepCopy_Internal(*this, context_copy);
       }
+
      public:
       bundle_t* files;
       uint64_t new_begin_segment;
@@ -410,25 +421,25 @@ class FileSystemSegmentedFile {
     };
 
     auto callback = [](core::IAsyncContext* ctxt) {
-      core::CallbackContext<Context> context{ ctxt };
-      for(uint64_t idx = context->files->begin_segment; idx < context->new_begin_segment; ++idx) {
+      core::CallbackContext<Context> context{ctxt};
+      for (uint64_t idx = context->files->begin_segment; idx < context->new_begin_segment; ++idx) {
         file_t& file = context->files->file(idx);
         file.Close();
         file.Delete();
       }
       std::free(context->files);
-      if(context->caller_callback) {
+      if (context->caller_callback) {
         context->caller_callback(context->new_begin_segment * kSegmentSize);
       }
     };
 
     // Only one thread can modify the list of files at a given time.
-    ReleasableLockGuard lock{ &mutex_ };
+    ReleasableLockGuard lock{&mutex_};
     bundle_t* files = files_.load();
     assert(files);
-    if(files->begin_segment >= new_begin_segment) {
+    if (files->begin_segment >= new_begin_segment) {
       // Segments have already been truncated.
-      if(caller_callback) {
+      if (caller_callback) {
         caller_callback(files->begin_segment * kSegmentSize);
       }
       return;
@@ -436,11 +447,11 @@ class FileSystemSegmentedFile {
 
     // Make a copy of the list, excluding the files to be truncated.
     void* buffer = std::malloc(bundle_t::size(files->end_segment - new_begin_segment));
-    bundle_t* new_files = new(buffer) bundle_t{ handler_, new_begin_segment, files->end_segment,
-        *files };
+    bundle_t* new_files =
+        new (buffer) bundle_t{handler_, new_begin_segment, files->end_segment, *files};
     files_.store(new_files);
     // Delete the old list only after all threads have finished looking at it.
-    Context context{ files, new_begin_segment, caller_callback };
+    Context context{files, new_begin_segment, caller_callback};
     core::IAsyncContext* context_copy;
     core::Status result = context.DeepCopy(context_copy);
     assert(result == core::Status::Ok);
@@ -470,21 +481,24 @@ class FileSystemDisk {
 
  private:
   static std::string NormalizePath(std::string root_path) {
-    if(root_path.empty() || root_path.back() != FASTER::environment::kPathSeparator[0]) {
+    if (root_path.empty() || root_path.back() != FASTER::environment::kPathSeparator[0]) {
       root_path += FASTER::environment::kPathSeparator;
     }
     return root_path;
   }
 
  public:
-  FileSystemDisk(const std::string& root_path, core::LightEpoch& epoch,
-                 const std::string& config = "",
-                 bool enablePrivileges = false, bool unbuffered = true,
-                 bool delete_on_close = false)
-    : root_path_{ NormalizePath(root_path) }
-    , handler_{ 16 /*max threads*/ }
-    , default_file_options_{ unbuffered, delete_on_close }
-    , log_{ root_path_ + "log.log", default_file_options_, &epoch} {
+  FileSystemDisk(
+      const std::string& root_path,
+      core::LightEpoch& epoch,
+      const std::string& config = "",
+      bool enablePrivileges = false,
+      bool unbuffered = true,
+      bool delete_on_close = false)
+      : root_path_{NormalizePath(root_path)},
+        handler_{16 /*max threads*/},
+        default_file_options_{unbuffered, delete_on_close},
+        log_{root_path_ + "log.log", default_file_options_, &epoch} {
     core::Status result = log_.Open(&handler_);
     assert(result == core::Status::Ok);
   }
@@ -525,10 +539,10 @@ class FileSystemDisk {
 
   void CreateIndexCheckpointDirectory(const core::Guid& token) {
     std::string index_dir = index_checkpoint_path(token);
-    std::experimental::filesystem::path path{ index_dir };
+    std::experimental::filesystem::path path{index_dir};
     try {
       std::experimental::filesystem::remove_all(path);
-    } catch(std::experimental::filesystem::filesystem_error&) {
+    } catch (std::experimental::filesystem::filesystem_error&) {
       // Ignore; throws when path doesn't exist yet.
     }
     std::experimental::filesystem::create_directories(path);
@@ -536,17 +550,17 @@ class FileSystemDisk {
 
   void CreateCprCheckpointDirectory(const core::Guid& token) {
     std::string cpr_dir = cpr_checkpoint_path(token);
-    std::experimental::filesystem::path path{ cpr_dir };
+    std::experimental::filesystem::path path{cpr_dir};
     try {
       std::experimental::filesystem::remove_all(path);
-    } catch(std::experimental::filesystem::filesystem_error&) {
+    } catch (std::experimental::filesystem::filesystem_error&) {
       // Ignore; throws when path doesn't exist yet.
     }
     std::experimental::filesystem::create_directories(path);
   }
 
   file_t NewFile(const std::string& relative_path) {
-    return file_t{ root_path_ + relative_path, default_file_options_ };
+    return file_t{root_path_ + relative_path, default_file_options_};
   }
 
   /// Implementation-specific accessor.
@@ -568,5 +582,5 @@ class FileSystemDisk {
   log_file_t log_;
 };
 
-}
-} // namespace FASTER::device
+} // namespace device
+} // namespace FASTER

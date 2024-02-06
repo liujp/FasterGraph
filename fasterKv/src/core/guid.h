@@ -38,9 +38,7 @@ class Guid {
 
  private:
 #ifdef _WIN32
-  Guid(const GUID& guid)
-    : guid_{ guid } {
-  }
+  Guid(const GUID& guid) : guid_{guid} {}
 #else
   Guid(const uuid_t uuid) {
     uuid_copy(uuid_, uuid);
@@ -64,8 +62,8 @@ class Guid {
   static Guid Parse(const std::string str) {
 #ifdef _WIN32
     GUID guid;
-    auto result = ::UuidFromString(reinterpret_cast<uint8_t*>(const_cast<char*>(str.c_str())),
-                                   &guid);
+    auto result =
+        ::UuidFromString(reinterpret_cast<uint8_t*>(const_cast<char*>(str.c_str())), &guid);
     assert(result == RPC_S_OK);
     return guid;
 #else
@@ -80,26 +78,24 @@ class Guid {
     char buffer[37];
 #ifdef _WIN32
     size_t offset = sprintf(buffer, "%.8lX-%.4hX-%.4hX-", guid_.Data1, guid_.Data2, guid_.Data3);
-    for(size_t idx = 0; idx < 2; ++idx) {
+    for (size_t idx = 0; idx < 2; ++idx) {
       offset += sprintf(buffer + offset, "%.2hhX", guid_.Data4[idx]);
     }
     offset += sprintf(buffer + offset, "-");
-    for(size_t idx = 2; idx < sizeof(guid_.Data4); ++idx) {
+    for (size_t idx = 2; idx < sizeof(guid_.Data4); ++idx) {
       offset += sprintf(buffer + offset, "%.2hhX", guid_.Data4[idx]);
     }
     buffer[36] = '\0';
 #else
     uuid_unparse(uuid_, buffer);
 #endif
-    return std::string { buffer };
+    return std::string{buffer};
   }
 
   bool operator==(const Guid& other) const {
 #ifdef _WIN32
-    return guid_.Data1 == other.guid_.Data1 &&
-           guid_.Data2 == other.guid_.Data2 &&
-           guid_.Data3 == other.guid_.Data3 &&
-           std::memcmp(guid_.Data4, other.guid_.Data4, 8) == 0;
+    return guid_.Data1 == other.guid_.Data1 && guid_.Data2 == other.guid_.Data2 &&
+        guid_.Data3 == other.guid_.Data3 && std::memcmp(guid_.Data4, other.guid_.Data4, 8) == 0;
 #else
     return uuid_compare(uuid_, other.uuid_) == 0;
 #endif
@@ -108,9 +104,9 @@ class Guid {
   uint32_t GetHashCode() const {
 #ifdef _WIN32
     // From C#, .NET Reference Framework.
-    return guid_.Data1 ^ ((static_cast<uint32_t>(guid_.Data2) << 16) |
-                          static_cast<uint32_t>(guid_.Data3)) ^
-           ((static_cast<uint32_t>(guid_.Data4[2]) << 24) | guid_.Data4[7]);
+    return guid_.Data1 ^
+        ((static_cast<uint32_t>(guid_.Data2) << 16) | static_cast<uint32_t>(guid_.Data3)) ^
+        ((static_cast<uint32_t>(guid_.Data4[2]) << 24) | guid_.Data4[7]);
 #else
     uint32_t Data1;
     uint16_t Data2;
@@ -119,9 +115,8 @@ class Guid {
     std::memcpy(&Data2, uuid_ + 4, sizeof(Data2));
     std::memcpy(&Data3, uuid_ + 6, sizeof(Data3));
     // From C#, .NET Reference Framework.
-    return Data1 ^ ((static_cast<uint32_t>(Data2) << 16) |
-                    static_cast<uint32_t>(Data3)) ^
-           ((static_cast<uint32_t>(uuid_[10]) << 24) | uuid_[15]);
+    return Data1 ^ ((static_cast<uint32_t>(Data2) << 16) | static_cast<uint32_t>(Data3)) ^
+        ((static_cast<uint32_t>(uuid_[10]) << 24) | uuid_[15]);
 #endif
   }
 
@@ -133,15 +128,15 @@ class Guid {
 #endif
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER
 
 /// Implement std::hash<> for GUIDs.
 namespace std {
-template<>
+template <>
 struct hash<FASTER::core::Guid> {
   size_t operator()(const FASTER::core::Guid& val) const {
     return val.GetHashCode();
   }
 };
-}
+} // namespace std

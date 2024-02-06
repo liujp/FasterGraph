@@ -25,11 +25,7 @@ class LightEpoch {
  private:
   /// Entry in epoch table
   struct alignas(Constants::kCacheLineBytes) Entry {
-    Entry()
-      : local_current_epoch{ 0 }
-      , reentrant{ 0 }
-      , phase_finished{ Phase::REST } {
-    }
+    Entry() : local_current_epoch{0}, reentrant{0}, phase_finished{Phase::REST} {}
 
     uint64_t local_current_epoch;
     uint32_t reentrant;
@@ -38,16 +34,12 @@ class LightEpoch {
   static_assert(sizeof(Entry) == 64, "sizeof(Entry) != 64");
 
   struct EpochAction {
-    typedef void(*callback_t)(IAsyncContext*);
+    typedef void (*callback_t)(IAsyncContext*);
 
     static constexpr uint64_t kFree = UINT64_MAX;
     static constexpr uint64_t kLocked = UINT64_MAX - 1;
 
-    EpochAction()
-      : epoch{ kFree }
-      , callback{ nullptr }
-      , context{ nullptr } {
-    }
+    EpochAction() : epoch{kFree}, callback{nullptr}, context{nullptr} {}
 
     void Initialize() {
       callback = nullptr;
@@ -61,7 +53,7 @@ class LightEpoch {
 
     bool TryPop(uint64_t expected_epoch) {
       bool retval = epoch.compare_exchange_strong(expected_epoch, kLocked);
-      if(retval) {
+      if (retval) {
         callback_t callback_ = callback;
         IAsyncContext* context_ = context;
         callback = nullptr;
@@ -77,7 +69,7 @@ class LightEpoch {
     bool TryPush(uint64_t prior_epoch, callback_t new_callback, IAsyncContext* new_context) {
       uint64_t expected_epoch = kFree;
       bool retval = epoch.compare_exchange_strong(expected_epoch, kLocked);
-      if(retval) {
+      if (retval) {
         callback = new_callback;
         context = new_context;
         // Release the lock.
@@ -86,10 +78,13 @@ class LightEpoch {
       return retval;
     }
 
-    bool TrySwap(uint64_t expected_epoch, uint64_t prior_epoch, callback_t new_callback,
-                 IAsyncContext* new_context) {
+    bool TrySwap(
+        uint64_t expected_epoch,
+        uint64_t prior_epoch,
+        callback_t new_callback,
+        IAsyncContext* new_context) {
       bool retval = epoch.compare_exchange_strong(expected_epoch, kLocked);
-      if(retval) {
+      if (retval) {
         callback_t existing_callback = callback;
         IAsyncContext* existing_context = context;
         callback = new_callback;
@@ -105,7 +100,7 @@ class LightEpoch {
     /// The epoch field is atomic--always read it first and write it last.
     std::atomic<uint64_t> epoch;
 
-    void(*callback)(IAsyncContext* context);
+    void (*callback)(IAsyncContext* context);
     IAsyncContext* context;
   };
 
@@ -135,10 +130,7 @@ class LightEpoch {
   /// Cached value of epoch that is safe to reclaim
   std::atomic<uint64_t> safe_to_reclaim_epoch;
 
-  LightEpoch()
-    : table_{ nullptr }
-    , drain_count_{ 0 }
-    , drain_list_{} {
+  LightEpoch() : table_{nullptr}, drain_count_{0}, drain_list_{} {
     Initialize();
   }
 
@@ -149,12 +141,12 @@ class LightEpoch {
  private:
   void Initialize() {
     // do cache-line alignment
-    table_ = reinterpret_cast<Entry*>(aligned_alloc(Constants::kCacheLineBytes,
-                                      (kTableSize + 2) * sizeof(Entry)));
-    new(table_) Entry[kTableSize + 2];
+    table_ = reinterpret_cast<Entry*>(
+        aligned_alloc(Constants::kCacheLineBytes, (kTableSize + 2) * sizeof(Entry)));
+    new (table_) Entry[kTableSize + 2];
     current_epoch = 1;
     safe_to_reclaim_epoch = 0;
-    for(uint32_t idx = 0; idx < kDrainListSize; ++idx) {
+    for (uint32_t idx = 0; idx < kDrainListSize; ++idx) {
       drain_list_[idx].Initialize();
     }
     drain_count_ = 0;
@@ -180,7 +172,7 @@ class LightEpoch {
   inline uint64_t ProtectAndDrain() {
     uint32_t entry = Thread::id();
     table_[entry].local_current_epoch = current_epoch.load();
-    if(drain_count_.load() > 0) {
+    if (drain_count_.load() > 0) {
       Drain(table_[entry].local_current_epoch);
     }
     return table_[entry].local_current_epoch;
@@ -188,7 +180,7 @@ class LightEpoch {
 
   uint64_t ReentrantProtect() {
     uint32_t entry = Thread::id();
-    if(table_[entry].local_current_epoch != kUnprotected)
+    if (table_[entry].local_current_epoch != kUnprotected)
       return table_[entry].local_current_epoch;
     table_[entry].local_current_epoch = current_epoch.load();
     table_[entry].reentrant++;
@@ -207,18 +199,18 @@ class LightEpoch {
 
   void ReentrantUnprotect() {
     uint32_t entry = Thread::id();
-    if(--(table_[entry].reentrant) == 0) {
+    if (--(table_[entry].reentrant) == 0) {
       table_[entry].local_current_epoch = kUnprotected;
     }
   }
 
   void Drain(uint64_t nextEpoch) {
     ComputeNewSafeToReclaimEpoch(nextEpoch);
-    for(uint32_t idx = 0; idx < kDrainListSize; ++idx) {
+    for (uint32_t idx = 0; idx < kDrainListSize; ++idx) {
       uint64_t trigger_epoch = drain_list_[idx].epoch.load();
-      if(trigger_epoch <= safe_to_reclaim_epoch) {
-        if(drain_list_[idx].TryPop(trigger_epoch)) {
-          if(--drain_count_ == 0) {
+      if (trigger_epoch <= safe_to_reclaim_epoch) {
+        if (drain_list_[idx].TryPop(trigger_epoch)) {
+          if (--drain_count_ == 0) {
             break;
           }
         }
@@ -229,7 +221,7 @@ class LightEpoch {
   /// Increment the current epoch (global system state)
   uint64_t BumpCurrentEpoch() {
     uint64_t nextEpoch = ++current_epoch;
-    if(drain_count_ > 0) {
+    if (drain_count_ > 0) {
       Drain(nextEpoch);
     }
     return nextEpoch;
@@ -240,21 +232,21 @@ class LightEpoch {
   uint64_t BumpCurrentEpoch(EpochAction::callback_t callback, IAsyncContext* context) {
     uint64_t prior_epoch = BumpCurrentEpoch() - 1;
     uint32_t i = 0, j = 0;
-    while(true) {
+    while (true) {
       uint64_t trigger_epoch = drain_list_[i].epoch.load();
-      if(trigger_epoch == EpochAction::kFree) {
-        if(drain_list_[i].TryPush(prior_epoch, callback, context)) {
+      if (trigger_epoch == EpochAction::kFree) {
+        if (drain_list_[i].TryPush(prior_epoch, callback, context)) {
           ++drain_count_;
           break;
         }
-      } else if(trigger_epoch <= safe_to_reclaim_epoch.load()) {
-        if(drain_list_[i].TrySwap(trigger_epoch, prior_epoch, callback, context)) {
+      } else if (trigger_epoch <= safe_to_reclaim_epoch.load()) {
+        if (drain_list_[i].TrySwap(trigger_epoch, prior_epoch, callback, context)) {
           break;
         }
       }
-      if(++i == kDrainListSize) {
+      if (++i == kDrainListSize) {
         i = 0;
-        if(++j == 500) {
+        if (++j == 500) {
           j = 0;
           std::this_thread::sleep_for(std::chrono::seconds(1));
           fprintf(stderr, "Slowdown: Unable to add trigger to epoch\n");
@@ -267,9 +259,9 @@ class LightEpoch {
   /// Compute latest epoch that is safe to reclaim, by scanning the epoch table
   uint64_t ComputeNewSafeToReclaimEpoch(uint64_t current_epoch_) {
     uint64_t oldest_ongoing_call = current_epoch_;
-    for(uint32_t index = 0; index < kTableSize; ++index) {
+    for (uint32_t index = 0; index < kTableSize; ++index) {
       uint64_t entry_epoch = table_[index].local_current_epoch;
-      if(entry_epoch != kUnprotected && entry_epoch < oldest_ongoing_call) {
+      if (entry_epoch != kUnprotected && entry_epoch < oldest_ongoing_call) {
         oldest_ongoing_call = entry_epoch;
       }
     }
@@ -280,7 +272,7 @@ class LightEpoch {
   void SpinWaitForSafeToReclaim(uint64_t current_epoch_, uint64_t safe_to_reclaim_epoch_) {
     do {
       ComputeNewSafeToReclaimEpoch(current_epoch_);
-    } while(safe_to_reclaim_epoch_ > safe_to_reclaim_epoch);
+    } while (safe_to_reclaim_epoch_ > safe_to_reclaim_epoch);
   }
 
   bool IsSafeToReclaim(uint64_t epoch) const {
@@ -289,12 +281,13 @@ class LightEpoch {
 
   /// CPR checkpoint functions.
   inline void ResetPhaseFinished() {
-    for(uint32_t idx = 0; idx < kTableSize; ++idx) {
-      assert(table_[idx].phase_finished.load() == Phase::REST ||
-             table_[idx].phase_finished.load() == Phase::INDEX_CHKPT ||
-             table_[idx].phase_finished.load() == Phase::PERSISTENCE_CALLBACK ||
-             table_[idx].phase_finished.load() == Phase::GC_IN_PROGRESS ||
-             table_[idx].phase_finished.load() == Phase::GROW_IN_PROGRESS);
+    for (uint32_t idx = 0; idx < kTableSize; ++idx) {
+      assert(
+          table_[idx].phase_finished.load() == Phase::REST ||
+          table_[idx].phase_finished.load() == Phase::INDEX_CHKPT ||
+          table_[idx].phase_finished.load() == Phase::PERSISTENCE_CALLBACK ||
+          table_[idx].phase_finished.load() == Phase::GC_IN_PROGRESS ||
+          table_[idx].phase_finished.load() == Phase::GROW_IN_PROGRESS);
       table_[idx].phase_finished.store(Phase::REST);
     }
   }
@@ -303,10 +296,10 @@ class LightEpoch {
     uint32_t entry = Thread::id();
     table_[entry].phase_finished = phase;
     // Check if other threads have reported complete.
-    for(uint32_t idx = 0; idx < kTableSize; ++idx) {
+    for (uint32_t idx = 0; idx < kTableSize; ++idx) {
       Phase entry_phase = table_[idx].phase_finished.load();
       uint64_t entry_epoch = table_[idx].local_current_epoch;
-      if(entry_epoch != 0 && entry_phase != phase) {
+      if (entry_epoch != 0 && entry_phase != phase) {
         return false;
       }
     }
@@ -320,5 +313,5 @@ class LightEpoch {
   }
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

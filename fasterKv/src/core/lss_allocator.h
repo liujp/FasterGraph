@@ -40,10 +40,7 @@ static constexpr uint32_t kBaseAlignment = 16;
 /// essentially stack allocations; but _DEBUG mode includes it for the benefit of the caller.)
 #ifdef _DEBUG
 struct alignas(8) Header {
-  Header(uint32_t size_, uint32_t offset_)
-    : offset{ offset_ }
-    , size{ size_ } {
-  }
+  Header(uint32_t size_, uint32_t offset_) : offset{offset_}, size{size_} {}
 
   /// Offset from the head of the segment allocator's buffer to the memory block.
   uint32_t offset;
@@ -54,9 +51,7 @@ struct alignas(8) Header {
 static_assert(sizeof(Header) == 8, "Header is not 8 bytes!");
 #else
 struct Header {
-  Header(uint16_t offset_)
-    : offset{ offset_ } {
-  }
+  Header(uint16_t offset_) : offset{offset_} {}
 
   /// Offset from the head of the segment allocator's buffer to the memory block.
   uint16_t offset;
@@ -68,32 +63,25 @@ class ThreadAllocator;
 
 class SegmentState {
  public:
-  SegmentState()
-    : control{ 0 } {
-  }
+  SegmentState() : control{0} {}
 
-  SegmentState(uint64_t control_)
-    : control{ control_ } {
-  }
+  SegmentState(uint64_t control_) : control{control_} {}
 
-  SegmentState(uint32_t allocations_, uint32_t frees_)
-    : frees{ frees_ }
-    , allocations{ allocations_ } {
-  }
+  SegmentState(uint32_t allocations_, uint32_t frees_) : frees{frees_}, allocations{allocations_} {}
 
   union {
-      struct {
-        /// Count of memory blocks freed inside this segment. Incremented on each free. Frees can
-        /// take place on any thread.
-        uint32_t frees;
-        /// If this segment is sealed, then the count of memory blocks allocated inside this
-        /// segment. Otherwise, zero.
-        uint32_t allocations;
-      };
-      /// 64-bit control field, used so that threads can read the allocation count atomically at
-      /// the same time they increment the free count atomically.
-      std::atomic<uint64_t> control;
+    struct {
+      /// Count of memory blocks freed inside this segment. Incremented on each free. Frees can
+      /// take place on any thread.
+      uint32_t frees;
+      /// If this segment is sealed, then the count of memory blocks allocated inside this
+      /// segment. Otherwise, zero.
+      uint32_t allocations;
     };
+    /// 64-bit control field, used so that threads can read the allocation count atomically at
+    /// the same time they increment the free count atomically.
+    std::atomic<uint64_t> control;
+  };
 };
 static_assert(sizeof(SegmentState) == 8, "sizeof(SegmentState) != 8");
 static_assert(kSegmentSize < UINT16_MAX / 2, "kSegmentSize too large for offset size!");
@@ -110,8 +98,7 @@ class SegmentAllocator {
 #endif
 
   /// Initialize the segment allocator and allocate the segment.
-  SegmentAllocator()
-    : state{} {
+  SegmentAllocator() : state{} {
 #ifdef _DEBUG
     // Debug LSS memory codes:
     //  - 0xBA - initialized, not allocated.
@@ -161,11 +148,7 @@ class alignas(64) ThreadAllocator {
 
   /// Initialize the thread allocator. The real work happens lazily, when Allocate() is called for
   /// the first time.
-  ThreadAllocator()
-    : segment_allocator_{ nullptr }
-    , segment_offset_{ 0 }
-    , allocations_{ 0 } {
-  }
+  ThreadAllocator() : segment_allocator_{nullptr}, segment_offset_{0}, allocations_{0} {}
 
   /// Allocate a memory block of the specified size < kSegmentSize. If allocation fails, returns
   /// nullptr.
@@ -219,7 +202,7 @@ class LssAllocator {
   /// Initialize the LSS allocator. The real work happens lazily, when a thread calls Allocate()
   /// for the first time.
   LssAllocator() {
-    for(size_t idx = 0; idx < kMaxThreadCount; ++idx) {
+    for (size_t idx = 0; idx < kMaxThreadCount; ++idx) {
       thread_allocators_[idx] = lss_memory::ThreadAllocator{};
     }
   }
@@ -245,5 +228,5 @@ class LssAllocator {
 /// The global LSS allocator instance.
 extern LssAllocator lss_allocator;
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

@@ -13,14 +13,10 @@ namespace core {
 /// State of the active grow-index call.
 class GrowState {
  public:
-  typedef void(*callback_t)(uint64_t new_size);
+  typedef void (*callback_t)(uint64_t new_size);
 
   GrowState()
-    : callback{ nullptr }
-    , num_pending_chunks{ 0 }
-    , old_version{ UINT8_MAX }
-    , new_version{ UINT8_MAX } {
-  }
+      : callback{nullptr}, num_pending_chunks{0}, old_version{UINT8_MAX}, new_version{UINT8_MAX} {}
 
   void Initialize(callback_t callback_, uint8_t current_version, uint64_t num_chunks_) {
     callback = callback_;
@@ -40,5 +36,5 @@ class GrowState {
   std::atomic<uint64_t> next_chunk;
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

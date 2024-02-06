@@ -8,29 +8,23 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
 #include "address.h"
 #include "guid.h"
 #include "hash_bucket.h"
+#include "key_hash.h"
 #include "native_buffer_pool.h"
 #include "record.h"
 #include "state_transitions.h"
 #include "thread.h"
-#include "key_hash.h"
 
 namespace FASTER {
 namespace core {
 
 /// Internal contexts, used by FASTER.
 
-enum class OperationType : uint8_t {
-  Read,
-  RMW,
-  Upsert,
-  Insert,
-  Delete
-};
+enum class OperationType : uint8_t { Read, RMW, Upsert, Insert, Delete };
 
 enum class OperationStatus : uint8_t {
   SUCCESS,
@@ -50,30 +44,30 @@ class PendingContext : public IAsyncContext {
   typedef K key_t;
 
  protected:
-  PendingContext(OperationType type_, IAsyncContext& caller_context_,
-                 AsyncCallback caller_callback_)
-    : type{ type_ }
-    , caller_context{ &caller_context_ }
-    , caller_callback{ caller_callback_ }
-    , version{ UINT32_MAX }
-    , phase{ Phase::INVALID }
-    , result{ Status::Pending }
-    , address{ Address::kInvalidAddress }
-    , entry{ HashBucketEntry::kInvalidEntry } {
-  }
+  PendingContext(
+      OperationType type_,
+      IAsyncContext& caller_context_,
+      AsyncCallback caller_callback_)
+      : type{type_},
+        caller_context{&caller_context_},
+        caller_callback{caller_callback_},
+        version{UINT32_MAX},
+        phase{Phase::INVALID},
+        result{Status::Pending},
+        address{Address::kInvalidAddress},
+        entry{HashBucketEntry::kInvalidEntry} {}
 
  public:
   /// The deep-copy constructor.
   PendingContext(const PendingContext& other, IAsyncContext* caller_context_)
-    : type{ other.type }
-    , caller_context{ caller_context_ }
-    , caller_callback{ other.caller_callback }
-    , version{ other.version }
-    , phase{ other.phase }
-    , result{ other.result }
-    , address{ other.address }
-    , entry{ other.entry } {
-  }
+      : type{other.type},
+        caller_context{caller_context_},
+        caller_callback{other.caller_callback},
+        version{other.version},
+        phase{other.phase},
+        result{other.result},
+        address{other.address},
+        entry{other.entry} {}
 
  public:
   /// Go async, for the first time.
@@ -119,10 +113,9 @@ class PendingContext : public IAsyncContext {
 // ShallowKey's write_deep_key_at() method to write the key content into the log.
 // New API case (user provides ShallowKey)
 //
-template<bool isShallowKey>
-struct write_deep_key_at_helper
-{
-  template<class ShallowKey, class Key>
+template <bool isShallowKey>
+struct write_deep_key_at_helper {
+  template <class ShallowKey, class Key>
   static inline void execute(const ShallowKey& key, Key* dst) {
     key.write_deep_key_at(dst);
   }
@@ -130,10 +123,9 @@ struct write_deep_key_at_helper
 
 // Old API case (user provides Key)
 //
-template<>
-struct write_deep_key_at_helper<false>
-{
-  template<class Key>
+template <>
+struct write_deep_key_at_helper<false> {
+  template <class Key>
   static inline void execute(const Key& key, Key* dst) {
     new (dst) Key(key);
   }
@@ -146,14 +138,14 @@ template <class K>
 class AsyncPendingReadContext : public PendingContext<K> {
  public:
   typedef K key_t;
+
  protected:
   AsyncPendingReadContext(IAsyncContext& caller_context_, AsyncCallback caller_callback_)
-    : PendingContext<key_t>(OperationType::Read, caller_context_, caller_callback_) {
-  }
+      : PendingContext<key_t>(OperationType::Read, caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   AsyncPendingReadContext(AsyncPendingReadContext& other, IAsyncContext* caller_context)
-    : PendingContext<key_t>(other, caller_context) {
-  }
+      : PendingContext<key_t>(other, caller_context) {}
+
  public:
   virtual void Get(const void* rec) = 0;
   virtual void GetAtomic(const void* rec) = 0;
@@ -166,22 +158,23 @@ class PendingReadContext : public AsyncPendingReadContext<typename RC::key_t> {
   typedef RC read_context_t;
   typedef typename read_context_t::key_t key_t;
   typedef typename read_context_t::value_t value_t;
-  using key_or_shallow_key_t = std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype(&RC::key)(RC)>>>;
+  using key_or_shallow_key_t =
+      std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype (&RC::key)(RC)>>>;
   typedef Record<key_t, value_t> record_t;
   constexpr static const bool kIsShallowKey = !std::is_same<key_or_shallow_key_t, key_t>::value;
 
   PendingReadContext(read_context_t& caller_context_, AsyncCallback caller_callback_)
-    : AsyncPendingReadContext<key_t>(caller_context_, caller_callback_) {
-  }
+      : AsyncPendingReadContext<key_t>(caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   PendingReadContext(PendingReadContext& other, IAsyncContext* caller_context_)
-    : AsyncPendingReadContext<key_t>(other, caller_context_) {
-  }
+      : AsyncPendingReadContext<key_t>(other, caller_context_) {}
+
  protected:
   Status DeepCopy_Internal(IAsyncContext*& context_copy) final {
-    return IAsyncContext::DeepCopy_Internal(*this, PendingContext<key_t>::caller_context,
-                                            context_copy);
+    return IAsyncContext::DeepCopy_Internal(
+        *this, PendingContext<key_t>::caller_context, context_copy);
   }
+
  private:
   inline const read_context_t& read_context() const {
     return *static_cast<const read_context_t*>(PendingContext<key_t>::caller_context);
@@ -189,6 +182,7 @@ class PendingReadContext : public AsyncPendingReadContext<typename RC::key_t> {
   inline read_context_t& read_context() {
     return *static_cast<read_context_t*>(PendingContext<key_t>::caller_context);
   }
+
  public:
   /// Accessors.
   inline const key_or_shallow_key_t& get_key_or_shallow_key() const {
@@ -223,14 +217,14 @@ template <class K>
 class AsyncPendingUpsertContext : public PendingContext<K> {
  public:
   typedef K key_t;
+
  protected:
   AsyncPendingUpsertContext(IAsyncContext& caller_context_, AsyncCallback caller_callback_)
-    : PendingContext<key_t>(OperationType::Upsert, caller_context_, caller_callback_) {
-  }
+      : PendingContext<key_t>(OperationType::Upsert, caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   AsyncPendingUpsertContext(AsyncPendingUpsertContext& other, IAsyncContext* caller_context)
-    : PendingContext<key_t>(other, caller_context) {
-  }
+      : PendingContext<key_t>(other, caller_context) {}
+
  public:
   virtual void Put(void* rec) = 0;
   virtual bool PutAtomic(void* rec) = 0;
@@ -244,22 +238,23 @@ class PendingUpsertContext : public AsyncPendingUpsertContext<typename UC::key_t
   typedef UC upsert_context_t;
   typedef typename upsert_context_t::key_t key_t;
   typedef typename upsert_context_t::value_t value_t;
-  using key_or_shallow_key_t = std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype(&UC::key)(UC)>>>;
+  using key_or_shallow_key_t =
+      std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype (&UC::key)(UC)>>>;
   typedef Record<key_t, value_t> record_t;
   constexpr static const bool kIsShallowKey = !std::is_same<key_or_shallow_key_t, key_t>::value;
 
   PendingUpsertContext(upsert_context_t& caller_context_, AsyncCallback caller_callback_)
-    : AsyncPendingUpsertContext<key_t>(caller_context_, caller_callback_) {
-  }
+      : AsyncPendingUpsertContext<key_t>(caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   PendingUpsertContext(PendingUpsertContext& other, IAsyncContext* caller_context_)
-    : AsyncPendingUpsertContext<key_t>(other, caller_context_) {
-  }
+      : AsyncPendingUpsertContext<key_t>(other, caller_context_) {}
+
  protected:
   Status DeepCopy_Internal(IAsyncContext*& context_copy) final {
-    return IAsyncContext::DeepCopy_Internal(*this, PendingContext<key_t>::caller_context,
-                                            context_copy);
+    return IAsyncContext::DeepCopy_Internal(
+        *this, PendingContext<key_t>::caller_context, context_copy);
   }
+
  private:
   inline const upsert_context_t& upsert_context() const {
     return *static_cast<const upsert_context_t*>(PendingContext<key_t>::caller_context);
@@ -271,7 +266,7 @@ class PendingUpsertContext : public AsyncPendingUpsertContext<typename UC::key_t
  public:
   /// Accessors.
   inline const key_or_shallow_key_t& get_key_or_shallow_key() const {
-     return upsert_context().key();
+    return upsert_context().key();
   }
   inline uint32_t key_size() const final {
     return upsert_context().key().size();
@@ -304,14 +299,14 @@ template <class K>
 class AsyncPendingRmwContext : public PendingContext<K> {
  public:
   typedef K key_t;
+
  protected:
   AsyncPendingRmwContext(IAsyncContext& caller_context_, AsyncCallback caller_callback_)
-    : PendingContext<key_t>(OperationType::RMW, caller_context_, caller_callback_) {
-  }
+      : PendingContext<key_t>(OperationType::RMW, caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   AsyncPendingRmwContext(AsyncPendingRmwContext& other, IAsyncContext* caller_context)
-    : PendingContext<key_t>(other, caller_context) {
-  }
+      : PendingContext<key_t>(other, caller_context) {}
+
  public:
   /// Set initial value.
   virtual void RmwInitial(void* rec) = 0;
@@ -332,22 +327,23 @@ class PendingRmwContext : public AsyncPendingRmwContext<typename MC::key_t> {
   typedef MC rmw_context_t;
   typedef typename rmw_context_t::key_t key_t;
   typedef typename rmw_context_t::value_t value_t;
-  using key_or_shallow_key_t = std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype(&MC::key)(MC)>>>;
+  using key_or_shallow_key_t =
+      std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype (&MC::key)(MC)>>>;
   typedef Record<key_t, value_t> record_t;
   constexpr static const bool kIsShallowKey = !std::is_same<key_or_shallow_key_t, key_t>::value;
 
   PendingRmwContext(rmw_context_t& caller_context_, AsyncCallback caller_callback_)
-    : AsyncPendingRmwContext<key_t>(caller_context_, caller_callback_) {
-  }
+      : AsyncPendingRmwContext<key_t>(caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   PendingRmwContext(PendingRmwContext& other, IAsyncContext* caller_context_)
-    : AsyncPendingRmwContext<key_t>(other, caller_context_) {
-  }
+      : AsyncPendingRmwContext<key_t>(other, caller_context_) {}
+
  protected:
   Status DeepCopy_Internal(IAsyncContext*& context_copy) final {
-    return IAsyncContext::DeepCopy_Internal(*this, PendingContext<key_t>::caller_context,
-                                            context_copy);
+    return IAsyncContext::DeepCopy_Internal(
+        *this, PendingContext<key_t>::caller_context, context_copy);
   }
+
  private:
   const rmw_context_t& rmw_context() const {
     return *static_cast<const rmw_context_t*>(PendingContext<key_t>::caller_context);
@@ -355,6 +351,7 @@ class PendingRmwContext : public AsyncPendingRmwContext<typename MC::key_t> {
   rmw_context_t& rmw_context() {
     return *static_cast<rmw_context_t*>(PendingContext<key_t>::caller_context);
   }
+
  public:
   /// Accessors.
   inline const key_or_shallow_key_t& get_key_or_shallow_key() const {
@@ -406,14 +403,14 @@ template <class K>
 class AsyncPendingDeleteContext : public PendingContext<K> {
  public:
   typedef K key_t;
+
  protected:
   AsyncPendingDeleteContext(IAsyncContext& caller_context_, AsyncCallback caller_callback_)
-    : PendingContext<key_t>(OperationType::Delete, caller_context_, caller_callback_) {
-  }
+      : PendingContext<key_t>(OperationType::Delete, caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   AsyncPendingDeleteContext(AsyncPendingDeleteContext& other, IAsyncContext* caller_context)
-    : PendingContext<key_t>(other, caller_context) {
-  }
+      : PendingContext<key_t>(other, caller_context) {}
+
  public:
   /// Get value size for initial value
   virtual uint32_t value_size() const = 0;
@@ -426,22 +423,23 @@ class PendingDeleteContext : public AsyncPendingDeleteContext<typename MC::key_t
   typedef MC delete_context_t;
   typedef typename delete_context_t::key_t key_t;
   typedef typename delete_context_t::value_t value_t;
-  using key_or_shallow_key_t = std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype(&MC::key)(MC)>>>;
+  using key_or_shallow_key_t =
+      std::remove_const_t<std::remove_reference_t<std::result_of_t<decltype (&MC::key)(MC)>>>;
   typedef Record<key_t, value_t> record_t;
   constexpr static const bool kIsShallowKey = !std::is_same<key_or_shallow_key_t, key_t>::value;
 
   PendingDeleteContext(delete_context_t& caller_context_, AsyncCallback caller_callback_)
-    : AsyncPendingDeleteContext<key_t>(caller_context_, caller_callback_) {
-  }
+      : AsyncPendingDeleteContext<key_t>(caller_context_, caller_callback_) {}
   /// The deep copy constructor.
   PendingDeleteContext(PendingDeleteContext& other, IAsyncContext* caller_context_)
-    : AsyncPendingDeleteContext<key_t>(other, caller_context_) {
-  }
+      : AsyncPendingDeleteContext<key_t>(other, caller_context_) {}
+
  protected:
   Status DeepCopy_Internal(IAsyncContext*& context_copy) final {
-    return IAsyncContext::DeepCopy_Internal(*this, PendingContext<key_t>::caller_context,
-                                            context_copy);
+    return IAsyncContext::DeepCopy_Internal(
+        *this, PendingContext<key_t>::caller_context, context_copy);
   }
+
  private:
   const delete_context_t& delete_context() const {
     return *static_cast<const delete_context_t*>(PendingContext<key_t>::caller_context);
@@ -449,6 +447,7 @@ class PendingDeleteContext : public AsyncPendingDeleteContext<typename MC::key_t
   delete_context_t& delete_context() {
     return *static_cast<delete_context_t*>(PendingContext<key_t>::caller_context);
   }
+
  public:
   /// Accessors.
   inline const key_or_shallow_key_t& get_key_or_shallow_key() const {
@@ -476,11 +475,7 @@ class AsyncIOContext;
 
 /// Per-thread execution context. (Just the stuff that's checkpointed to disk.)
 struct PersistentExecContext {
-  PersistentExecContext()
-    : serial_num{ 0 }
-    , version{ 0 }
-    , guid{} {
-  }
+  PersistentExecContext() : serial_num{0}, version{0}, guid{} {}
 
   void Initialize(uint32_t version_, const Guid& guid_, uint64_t serial_num_) {
     serial_num = serial_num_;
@@ -498,10 +493,7 @@ static_assert(sizeof(PersistentExecContext) == 32, "sizeof(PersistentExecContext
 /// Per-thread execution context. (Also includes state kept in-memory-only.)
 struct ExecutionContext : public PersistentExecContext {
   /// Default constructor.
-  ExecutionContext()
-    : phase{ Phase::INVALID }
-    , io_id{ 0 } {
-  }
+  ExecutionContext() : phase{Phase::INVALID}, io_id{0} {}
 
   void Initialize(Phase phase_, uint32_t version_, const Guid& guid_, uint64_t serial_num_) {
     assert(retry_requests.empty());
@@ -530,5 +522,5 @@ struct ExecutionContext : public PersistentExecContext {
   concurrent_queue<AsyncIOContext*> io_responses;
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER

@@ -47,5 +47,5 @@ enum class Phase : uint8_t {
   INVALID
 };
 
-}
-} // namespace FASTER::core
+} // namespace core
+} // namespace FASTER
